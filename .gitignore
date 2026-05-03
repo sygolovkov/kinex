@@ -31,6 +31,9 @@ local_settings.py
 # Let's Encrypt
 certbot/
 
+# API specs
+payments/openapi.json
+
 # IDE
 .vscode/
 .idea/

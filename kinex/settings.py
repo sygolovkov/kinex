@@ -18,6 +18,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'managers',
+    'payments',
 ]
 
 MIDDLEWARE = [
@@ -76,3 +78,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Genesis Pay gateway
+PAYMENT_API_URL = os.environ.get('PAYMENT_API_URL', 'https://api.genesispay.ru/api/v1')
+PAYMENT_MERCHANT = os.environ.get('PAYMENT_MERCHANT', '')
+PAYMENT_API_KEY = os.environ.get('PAYMENT_API_KEY', '')
+PAYMENT_CALLBACK_URL = os.environ.get('PAYMENT_CALLBACK_URL', '')
+PAYMENT_SUCCESS_URL = os.environ.get('PAYMENT_SUCCESS_URL', '')
+PAYMENT_FAIL_URL = os.environ.get('PAYMENT_FAIL_URL', '')
+PAYMENT_WEBSITE_URL = os.environ.get('PAYMENT_WEBSITE_URL', '')
