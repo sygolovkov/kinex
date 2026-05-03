@@ -31,6 +31,10 @@ local_settings.py
 # Let's Encrypt
 certbot/
 
+# Local dev overrides
+docker-compose.override.yml
+.env.local
+
 # API specs
 payments/openapi.json
 

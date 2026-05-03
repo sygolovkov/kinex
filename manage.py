@@ -2,10 +2,21 @@
 """Django's command-line utility for administrative tasks."""
 import os
 import sys
+from pathlib import Path
+
+
+def load_env(path):
+    for line in Path(path).read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith('#') and '=' in line:
+            key, _, value = line.partition('=')
+            os.environ.setdefault(key.strip(), value.strip())
 
 
 def main():
     """Run administrative tasks."""
+    if Path('.env.local').exists():
+        load_env('.env.local')
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'kinex.settings')
     try:
         from django.core.management import execute_from_command_line
