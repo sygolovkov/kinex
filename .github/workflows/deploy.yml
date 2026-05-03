@@ -3,7 +3,7 @@ name: Deploy
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   deploy:
@@ -19,7 +19,7 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           script: |
             cd /opt/kinex
-            git pull origin main
-            docker compose build --no-cache
-            docker compose up -d
+            git pull origin master
+            docker-compose build --no-cache
+            docker-compose up -d
             docker image prune -f
