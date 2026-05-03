@@ -1,6 +1,5 @@
 import hashlib
 import hmac
-import json
 import os
 import uuid
 from datetime import datetime, timezone
@@ -18,9 +17,8 @@ from .models import Payment
 class PaymentCreateView(View):
 
     def post(self, request):
-        data = json.loads(request.body)
-        amount = str(float(data['amount']))
-        description = data.get('description', '')
+        amount = str(float(request.POST.get('amount')))
+        description = request.POST.get('description', '')
 
         order_id = uuid.uuid4().hex
         timestamp = datetime.now(timezone.utc).strftime(
@@ -34,8 +32,8 @@ class PaymentCreateView(View):
             'payment_method': 'sbp',
             'timestamp': timestamp,
             'callback_url': os.environ['PAYMENT_CALLBACK_URL'],
-            'success_url': os.environ['PAYMENT_SUCCESS_URL'],
-            'fail_url': os.environ['PAYMENT_FAIL_URL'],
+            # 'success_url': os.environ['PAYMENT_SUCCESS_URL'],
+            # 'fail_url': os.environ['PAYMENT_FAIL_URL'],
         }
 
         sign_str = ''.join(f'{k}{v}' for k, v in body.items())
@@ -52,12 +50,12 @@ class PaymentCreateView(View):
         )
         response_data = response.json()
 
-        Payment.objects.create(
-            amount=amount,
-            currency='RUB',
-            description=description,
-            status=response_data.get(
-                'status_code', Payment.Status.SERVER_ERROR),
-        )
+        # Payment.objects.create(
+        #     amount=amount,
+        #     currency='RUB',
+        #     description=description,
+        #     status=response_data.get(
+        #         'status_code', Payment.Status.SERVER_ERROR),
+        # )
 
         return JsonResponse(response_data, status=response.status_code)

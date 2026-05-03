@@ -24,6 +24,6 @@ admin.site.index_title = 'Панель управления'
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/payments/', include('payments.urls')),
+    path('payments/', include('payments.urls')),
     path('', RedirectView.as_view(url='/admin/')),
 ]
