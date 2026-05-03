@@ -22,7 +22,6 @@ class ManagerAccessMiddleware(BaseMiddleware):
         if not event.from_user:
             return
         manager = await get_manager(event.from_user.id, event.from_user.username)
-        print(f'[DEBUG] id={event.from_user.id} username={event.from_user.username} manager={manager}')
         if not manager:
             await event.answer(ACCESS_DENIED)
             return

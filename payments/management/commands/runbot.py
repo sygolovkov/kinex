@@ -10,5 +10,6 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         dp.message.middleware(ManagerAccessMiddleware())
+        dp.callback_query.middleware(ManagerAccessMiddleware())
         dp.include_router(handlers.router)
         asyncio.run(dp.start_polling(bot))
