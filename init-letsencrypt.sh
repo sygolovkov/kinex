@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 DOMAIN="kinex-pay.ru"
 EMAIL="admin@kinex-pay.ru"
@@ -6,31 +7,30 @@ EMAIL="admin@kinex-pay.ru"
 mkdir -p ./certbot/conf/live/$DOMAIN
 mkdir -p ./certbot/www
 
-# Step 1: create a dummy self-signed cert so Nginx can start
-if [ ! -f "./certbot/conf/live/$DOMAIN/fullchain.pem" ]; then
-    echo "Creating dummy certificate..."
-    docker compose run --rm --entrypoint "\
-        openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
-        -keyout /etc/letsencrypt/live/$DOMAIN/privkey.pem \
-        -out /etc/letsencrypt/live/$DOMAIN/fullchain.pem \
-        -subj '/CN=localhost'" certbot
-fi
+# Step 1: dummy self-signed cert so Nginx can start before the real cert exists
+echo "Creating dummy certificate..."
+openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
+    -keyout "./certbot/conf/live/$DOMAIN/privkey.pem" \
+    -out  "./certbot/conf/live/$DOMAIN/fullchain.pem" \
+    -subj "/CN=localhost"
 
-# Step 2: start Nginx (it can now start with the dummy cert)
+# Step 2: start Nginx (can now start with dummy cert)
 echo "Starting Nginx..."
 docker compose up -d nginx
+sleep 5
 
-sleep 3
-
-# Step 3: delete dummy cert and get a real one
+# Step 3: remove dummy cert
 echo "Removing dummy certificate..."
-docker compose run --rm --entrypoint "\
-    rm -rf /etc/letsencrypt/live/$DOMAIN \
-           /etc/letsencrypt/archive/$DOMAIN \
-           /etc/letsencrypt/renewal/$DOMAIN.conf" certbot
+rm -rf "./certbot/conf/live/$DOMAIN" \
+       "./certbot/conf/archive/$DOMAIN" \
+       "./certbot/conf/renewal/$DOMAIN.conf"
 
+# Step 4: get real cert via plain docker run (no compose run quirks)
 echo "Requesting Let's Encrypt certificate for $DOMAIN..."
-docker compose run --rm certbot certonly \
+docker run --rm \
+    -v "$(pwd)/certbot/conf:/etc/letsencrypt" \
+    -v "$(pwd)/certbot/www:/var/www/certbot" \
+    certbot/certbot:latest certonly \
     --webroot \
     -w /var/www/certbot \
     -d "$DOMAIN" \
@@ -40,12 +40,10 @@ docker compose run --rm certbot certonly \
     --no-eff-email \
     --force-renewal
 
-if [ $? -eq 0 ]; then
-    echo "Certificate obtained successfully!"
-    docker compose exec nginx nginx -s reload
-    echo "Done. Starting remaining services..."
-    docker compose up -d
-else
-    echo "Failed to obtain certificate"
-    exit 1
-fi
+echo "Reloading Nginx with real certificate..."
+docker compose exec nginx nginx -s reload
+
+echo "Starting remaining services..."
+docker compose up -d
+
+echo "Done!"
