@@ -28,6 +28,9 @@ local_settings.py
 # Docker
 .dockerignore
 
+# Let's Encrypt
+certbot/
+
 # IDE
 .vscode/
 .idea/
