@@ -18,6 +18,8 @@ class Payment(models.Model):
     currency = models.CharField(
         max_length=10, default='RUB', verbose_name='Валюта')
     description = models.TextField(blank=True, verbose_name='Описание')
+    transaction_id = models.CharField(
+        max_length=64, blank=True, verbose_name='ID транзакции')
     status = models.IntegerField(
         choices=Status.choices, default=Status.CREATED, verbose_name='Статус')
     created_at = models.DateTimeField(

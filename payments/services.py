@@ -47,6 +47,7 @@ def create_payment(amount: float, description: str, manager) -> dict:
             amount=amount,
             currency='RUB',
             description=description,
+            transaction_id=data.get('transaction_id', ''),
             status=status_code,
         )
 
