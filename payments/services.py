@@ -44,6 +44,7 @@ def create_payment(amount: float, description: str, manager) -> dict:
     if status_code != Payment.Status.SERVER_ERROR:
         Payment.objects.create(
             manager=manager,
+            order_id=order_id,
             amount=amount,
             currency='RUB',
             description=description,
@@ -52,3 +53,41 @@ def create_payment(amount: float, description: str, manager) -> dict:
         )
 
     return data
+
+
+_STATUS_EMOJI = {
+    Payment.Status.CREATED: '🆕',
+    Payment.Status.IN_PROCESS: '⏳',
+    Payment.Status.SUCCESS: '✅',
+    Payment.Status.ERROR: '❌',
+    Payment.Status.SERVER_ERROR: '⚠️',
+}
+
+
+def notify_manager(payment) -> None:
+    if not payment.manager:
+        return
+    try:
+        chat_id = int(payment.manager.telegram_id)
+    except ValueError:
+        return
+
+    emoji = _STATUS_EMOJI.get(payment.status, '❓')
+    status_label = Payment.Status(payment.status).label
+    text = (
+        f'{emoji} Статус платежа обновлён\n\n'
+        f'💰 Сумма: {payment.amount} {payment.currency}\n'
+        f'📝 Назначение: {payment.description or "—"}\n'
+        f'📊 Статус: {status_label}'
+    )
+    if payment.transaction_id:
+        text += f'\n🆔 Транзакция: {payment.transaction_id}'
+
+    try:
+        http_client.post(
+            f'https://api.telegram.org/bot{os.environ["BOT_TOKEN"]}/sendMessage',
+            json={'chat_id': chat_id, 'text': text},
+            timeout=5,
+        )
+    except Exception:
+        pass
