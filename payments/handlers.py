@@ -8,6 +8,7 @@ from aiogram.types import (
 )
 from asgiref.sync import sync_to_async
 
+from core.models import Settings
 from .services import create_payment
 
 router = Router()
@@ -37,9 +38,9 @@ CONFIRM_KB = InlineKeyboardMarkup(inline_keyboard=[[
 ]])
 
 MENU_BUTTONS = {
-    '🔗 Генерация линка', '💳 Платежи',
+    '💳 Платежи',
     '💰 Баланс', '📤 Вывод',
-    '👤 Профиль', '🆘 Поддержка',
+    '👤 Профиль',
 }
 
 
@@ -158,6 +159,18 @@ async def link_confirm(call: CallbackQuery, state: FSMContext, manager):
         text += str(result)
 
     await call.message.answer(text, reply_markup=MENU)
+
+
+# ── Поддержка ────────────────────────────────────────────────────────────────
+
+@router.message(F.text == '🆘 Поддержка')
+async def support_handler(message: Message):
+    settings = await sync_to_async(Settings.get)()
+    text = 'По всем вопросам обращайтесь к Администратору'
+    if settings.admin_telegram_username:
+        username = settings.admin_telegram_username.lstrip('@')
+        text += f'\n\n👤 @{username}'
+    await message.answer(text)
 
 
 # ── Остальные разделы ────────────────────────────────────────────────────────
