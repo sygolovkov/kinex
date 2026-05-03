@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 import requests as http_client
 
+from core.models import get_bot_token
 from .models import Payment
 
 
@@ -85,7 +86,7 @@ def notify_manager(payment) -> None:
 
     try:
         http_client.post(
-            f'https://api.telegram.org/bot{os.environ["BOT_TOKEN"]}/sendMessage',
+            f'https://api.telegram.org/bot{get_bot_token()}/sendMessage',
             json={'chat_id': chat_id, 'text': text},
             timeout=5,
         )

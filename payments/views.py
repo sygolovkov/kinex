@@ -1,7 +1,6 @@
 import hashlib
 import hmac as hmac_lib
 import json
-import logging
 import os
 
 from django.http import JsonResponse
@@ -11,8 +10,6 @@ from django.views.decorators.csrf import csrf_exempt
 
 from .models import Payment
 from .services import create_payment, notify_manager
-
-logger = logging.getLogger(__name__)
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -31,15 +28,10 @@ class PaymentCreateView(View):
 class PaymentCallbackView(View):
 
     def post(self, request):
-        logger.warning('CALLBACK body: %s', request.body.decode('utf-8', errors='replace'))
-
         try:
             data = json.loads(request.body)
-        except (json.JSONDecodeError, ValueError) as e:
-            logger.error('CALLBACK json error: %s', e)
+        except (json.JSONDecodeError, ValueError):
             return JsonResponse({'error': 'invalid json'}, status=400)
-
-        logger.warning('CALLBACK data: %s', data)
 
         order_id = data.get('order_id', '')
         amount = data.get('amount', '')
@@ -57,28 +49,18 @@ class PaymentCallbackView(View):
             hashlib.sha1,
         ).hexdigest()
 
-        logger.warning('CALLBACK sign_str: %r', sign_str)
-        logger.warning('CALLBACK sign received: %s', sign)
-        logger.warning('CALLBACK sign expected: %s', expected)
-
         if not hmac_lib.compare_digest(sign, expected):
-            logger.error('CALLBACK signature mismatch')
-            # DEBUG: пропускаем проверку подписи временно
-            # return JsonResponse({'error': 'invalid signature'}, status=400)
+            return JsonResponse({'error': 'invalid signature'}, status=400)
 
         try:
             payment = Payment.objects.select_related('manager').get(order_id=order_id)
-            logger.warning('CALLBACK payment found: pk=%s status=%s', payment.pk, payment.status)
         except Payment.DoesNotExist:
-            logger.error('CALLBACK payment not found: order_id=%r', order_id)
             return JsonResponse({'error': 'not found'}, status=404)
 
-        old_status = payment.status
         payment.status = data.get('status_code', payment.status)
         if data.get('transaction_id'):
             payment.transaction_id = data['transaction_id']
         payment.save(update_fields=['status', 'transaction_id', 'updated_at'])
-        logger.warning('CALLBACK status updated: %s -> %s', old_status, payment.status)
 
         notify_manager(payment)
 
