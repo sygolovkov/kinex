@@ -70,33 +70,34 @@ _STATUS_EMOJI = {
 
 
 def get_balance_stats(manager, period: str) -> dict:
-    from django.db.models import Sum, Count
+    from django.db.models import Sum
     today_midnight = dj_timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
     since = today_midnight if period == 'today' else today_midnight.replace(day=1)
 
-    qs = Payment.objects.filter(
+    total = Payment.objects.filter(
         manager=manager,
         status=Payment.Status.SUCCESS,
         created_at__gte=since,
-    )
-    agg = qs.aggregate(total=Sum('amount'), count=Count('id'))
-    total = agg['total'] or Decimal('0')
-    count = agg['count'] or 0
+    ).aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
 
     settings = Settings.get()
     manager_rate = manager.commission / Decimal('100')
     ps_rate = settings.payment_system_commission / Decimal('100')
-    net_rate = manager_rate * (1 - ps_rate)
 
-    commission = (total * net_rate).quantize(Decimal('0.01'))
-    settled_total = qs.filter(is_settled=True).aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
-    settled_commission = (settled_total * net_rate).quantize(Decimal('0.01'))
+    # Комиссия платформы = доля платёжной системы от комиссии менеджера
+    platform_fee = (total * manager_rate * ps_rate).quantize(Decimal('0.01'))
+
+    # Выведено менеджером = сумма закрытых заявок на вывод за период
+    withdrawn = Withdrawal.objects.filter(
+        manager=manager,
+        status=Withdrawal.Status.COMPLETED,
+        created_at__gte=since,
+    ).aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
 
     return {
-        'count': count,
         'total': total,
-        'commission': commission,
-        'settled_commission': settled_commission,
+        'platform_fee': platform_fee,
+        'withdrawn': withdrawn,
         'available': calculate_available_balance(manager),
     }
 

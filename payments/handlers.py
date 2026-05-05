@@ -234,15 +234,12 @@ def _fetch_balance(manager, period: str) -> dict:
 
 def _balance_text(stats: dict, period: str) -> str:
     label = _BAL_PERIOD_LABEL[period]
-    unsettled = stats['commission'] - stats['settled_commission']
     lines = [
         f'💰 Баланс {label}\n',
-        f'Успешных платежей: {stats["count"]}',
-        f'Оборот:            {stats["total"]:>14,.2f} RUB',
-        f'Ваша комиссия:     {stats["commission"]:>14,.2f} RUB',
-        f'  · выплачено:     {stats["settled_commission"]:>14,.2f} RUB',
-        f'  · не выплачено:  {unsettled:>14,.2f} RUB',
-        f'\n📤 Доступно к выводу: {stats["available"]:,.2f} RUB',
+        f'✅ Успешных платежей:  {stats["total"]:,.2f} RUB',
+        f'📤 Выведено:           {stats["withdrawn"]:,.2f} RUB',
+        f'🏦 Удержано платформой: {stats["platform_fee"]:,.2f} RUB',
+        f'\n💵 Доступно к выводу: {stats["available"]:,.2f} RUB',
     ]
     return '\n'.join(lines)
 
