@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from core.models import Settings
 from .models import Payment, Withdrawal
-from .services import calculate_available_balance, create_payment, create_withdrawal
+from .services import calculate_available_balance, create_payment, create_withdrawal, get_balance_stats
 
 router = Router()
 
@@ -42,9 +42,21 @@ CONFIRM_KB = InlineKeyboardMarkup(inline_keyboard=[[
 ]])
 
 MENU_BUTTONS = {
-    '💰 Баланс',
     '👤 Профиль',
 }
+
+_BAL_PERIODS = [('today', 'Сегодня'), ('month', 'Месяц')]
+_BAL_PERIOD_LABEL = {'today': 'сегодня', 'month': 'за месяц'}
+
+
+def _balance_kb(period: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(
+            text=f'✓ {lbl}' if p == period else lbl,
+            callback_data=f'bal:{p}',
+        )
+        for p, lbl in _BAL_PERIODS
+    ]])
 
 _PERIODS = [('day', 'День'), ('week', 'Неделя'), ('month', 'Месяц')]
 _STATUSES = [('all', 'Все'), ('in_process', 'В процессе'), ('success', 'Успешно')]
@@ -211,6 +223,54 @@ async def link_confirm(call: CallbackQuery, state: FSMContext, manager):
         text += str(result)
 
     await call.message.answer(text, reply_markup=MENU)
+
+
+# ── Баланс ───────────────────────────────────────────────────────────────────
+
+@sync_to_async
+def _fetch_balance(manager, period: str) -> dict:
+    return get_balance_stats(manager, period)
+
+
+def _balance_text(stats: dict, period: str) -> str:
+    label = _BAL_PERIOD_LABEL[period]
+    unsettled = stats['commission'] - stats['settled_commission']
+    lines = [
+        f'💰 Баланс {label}\n',
+        f'Успешных платежей: {stats["count"]}',
+        f'Оборот:            {stats["total"]:>14,.2f} RUB',
+        f'Ваша комиссия:     {stats["commission"]:>14,.2f} RUB',
+        f'  · выплачено:     {stats["settled_commission"]:>14,.2f} RUB',
+        f'  · не выплачено:  {unsettled:>14,.2f} RUB',
+        f'\n📤 Доступно к выводу: {stats["available"]:,.2f} RUB',
+    ]
+    return '\n'.join(lines)
+
+
+@router.message(F.text == '💰 Баланс')
+async def balance_start(message: Message, manager):
+    stats = await _fetch_balance(manager, 'today')
+    await message.answer(
+        _balance_text(stats, 'today'),
+        reply_markup=_balance_kb('today'),
+    )
+
+
+@router.callback_query(F.data.startswith('bal:'))
+async def balance_filter(call: CallbackQuery, manager):
+    if not call.message:
+        await call.answer()
+        return
+    _, period = call.data.split(':')
+    if period not in ('today', 'month'):
+        await call.answer()
+        return
+    stats = await _fetch_balance(manager, period)
+    await call.message.edit_text(
+        _balance_text(stats, period),
+        reply_markup=_balance_kb(period),
+    )
+    await call.answer()
 
 
 # ── Платежи ──────────────────────────────────────────────────────────────────

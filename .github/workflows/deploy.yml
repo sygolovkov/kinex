@@ -23,4 +23,5 @@ jobs:
             docker-compose build --no-cache
             docker-compose down
             docker-compose up --detach
+            docker-compose exec -T web python manage.py migrate --no-input
             docker image prune -f
