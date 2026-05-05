@@ -9,19 +9,7 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
 from .models import Payment
-from .services import create_payment, notify_manager
-
-
-@method_decorator(csrf_exempt, name='dispatch')
-class PaymentCreateView(View):
-
-    def post(self, request):
-        amount = float(request.POST.get('amount'))
-        description = request.POST.get('description', '')
-
-        result = create_payment(amount=amount, description=description, manager=None)
-
-        return JsonResponse(result)
+from .services import notify_manager
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -33,10 +21,10 @@ class PaymentCallbackView(View):
         except (json.JSONDecodeError, ValueError):
             return JsonResponse({'error': 'invalid json'}, status=400)
 
-        order_id = data.get('order_id', '')
-        amount = data.get('amount', '')
-        timestamp = data.get('timestamp', '')
-        sign = data.get('sign', '')
+        order_id = str(data.get('order_id', ''))
+        amount = str(data.get('amount', ''))
+        timestamp = str(data.get('timestamp', ''))
+        sign = str(data.get('sign', ''))
 
         sign_str = (
             f'{len(order_id)}{order_id}'

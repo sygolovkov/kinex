@@ -12,8 +12,8 @@ from asgiref.sync import sync_to_async
 from django.utils import timezone
 
 from core.models import Settings
-from .models import Payment
-from .services import create_payment
+from .models import Payment, Withdrawal
+from .services import calculate_available_balance, create_payment, create_withdrawal
 
 router = Router()
 
@@ -42,7 +42,7 @@ CONFIRM_KB = InlineKeyboardMarkup(inline_keyboard=[[
 ]])
 
 MENU_BUTTONS = {
-    '💰 Баланс', '📤 Вывод',
+    '💰 Баланс',
     '👤 Профиль',
 }
 
@@ -236,6 +236,121 @@ async def payments_filter(call: CallbackQuery, manager):
         reply_markup=_payments_kb(period, status),
     )
     await call.answer()
+
+
+# ── Вывод средств ────────────────────────────────────────────────────────────
+
+WITHDRAW_CONFIRM_KB = InlineKeyboardMarkup(inline_keyboard=[[
+    InlineKeyboardButton(text='✅ Подать заявку', callback_data='withdraw_confirm'),
+    InlineKeyboardButton(text='❌ Отмена',         callback_data='withdraw_cancel'),
+]])
+
+
+@sync_to_async
+def _get_withdrawal_info(manager):
+    balance = calculate_available_balance(manager)
+    active = Withdrawal.objects.filter(
+        manager=manager, status=Withdrawal.Status.PENDING,
+    ).order_by('-created_at').first()
+    return balance, active
+
+
+@router.message(F.text == '📤 Вывод')
+async def withdrawal_start(message: Message, manager):
+    balance, active = await _get_withdrawal_info(manager)
+
+    if active:
+        await message.answer(
+            f'📤 Вывод средств\n\n'
+            f'У вас уже есть активная заявка на вывод.\n'
+            f'💰 Сумма: {active.amount:,.2f} RUB\n'
+            f'📅 Дата подачи: {timezone.localtime(active.created_at).strftime("%d.%m.%Y %H:%M")}\n\n'
+            f'Заявка будет обработана администратором вручную.',
+        )
+        return
+
+    if not manager.usdt_wallet:
+        await message.answer(
+            '📤 Вывод средств\n\n'
+            '⚠️ USDT-кошелёк не указан. Обратитесь к администратору для его добавления.',
+        )
+        return
+
+    if balance <= 0:
+        await message.answer(
+            '📤 Вывод средств\n\n'
+            'Доступных средств для вывода нет.\n\n'
+            'К выводу учитываются успешные платежи, совершённые до начала текущего дня.',
+        )
+        return
+
+    await message.answer(
+        f'📤 Вывод средств\n\n'
+        f'Доступно к выводу: {balance:,.2f} RUB\n\n'
+        f'Средства будут переведены на USDT-кошелёк:\n'
+        f'<code>{manager.usdt_wallet}</code>\n\n'
+        f'Подтвердите заявку:',
+        parse_mode='HTML',
+        reply_markup=WITHDRAW_CONFIRM_KB,
+    )
+
+
+@router.callback_query(F.data == 'withdraw_cancel')
+async def withdrawal_cancel(call: CallbackQuery):
+    await call.answer()
+    if call.message:
+        await call.message.answer('Выберите раздел:', reply_markup=MENU)
+
+
+@router.callback_query(F.data == 'withdraw_confirm')
+async def withdrawal_confirm(call: CallbackQuery, manager):
+    await call.answer()
+    if not call.message:
+        return
+
+    balance, active = await _get_withdrawal_info(manager)
+
+    if active:
+        await call.message.answer(
+            '⚠️ У вас уже есть активная заявка на вывод.',
+            reply_markup=MENU,
+        )
+        return
+
+    if balance <= 0:
+        await call.message.answer(
+            '⚠️ Нет доступных средств для вывода.',
+            reply_markup=MENU,
+        )
+        return
+
+    try:
+        withdrawal = await sync_to_async(create_withdrawal)(manager)
+    except ValueError as e:
+        if str(e) == 'active_withdrawal_exists':
+            await call.message.answer(
+                '⚠️ У вас уже есть активная заявка на вывод.',
+                reply_markup=MENU,
+            )
+        else:
+            await call.message.answer(
+                '⚠️ Ошибка при создании заявки. Попробуйте позже.',
+                reply_markup=MENU,
+            )
+        return
+    except Exception:
+        await call.message.answer(
+            '⚠️ Ошибка при создании заявки. Попробуйте позже.',
+            reply_markup=MENU,
+        )
+        return
+
+    await call.message.answer(
+        f'✅ Заявка на вывод создана\n\n'
+        f'💰 Сумма: {withdrawal.amount:,.2f} RUB\n'
+        f'Администратор обработает заявку вручную.',
+        reply_markup=MENU,
+    )
 
 
 # ── Поддержка ────────────────────────────────────────────────────────────────

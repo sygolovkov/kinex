@@ -1,7 +1,6 @@
 from django.urls import path
-from .views import PaymentCallbackView, PaymentCreateView
+from .views import PaymentCallbackView
 
 urlpatterns = [
-    path('create', PaymentCreateView.as_view(), name='payment-create'),
     path('callback', PaymentCallbackView.as_view(), name='payment-callback'),
 ]

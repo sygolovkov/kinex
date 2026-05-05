@@ -8,6 +8,9 @@ class Settings(models.Model):
         max_length=64, blank=True, verbose_name='Telegram username администратора')
     bot_id = models.CharField(
         max_length=128, blank=True, verbose_name='Bot Token')
+    payment_system_commission = models.DecimalField(
+        max_digits=5, decimal_places=2, default='5.00',
+        verbose_name='Комиссия платёжной системы (%)')
 
     class Meta:
         verbose_name = 'Настройки'

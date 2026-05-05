@@ -1,5 +1,5 @@
 from aiogram import BaseMiddleware
-from aiogram.types import Message
+from aiogram.types import CallbackQuery, Message
 from asgiref.sync import sync_to_async
 from django.db.models import Q
 from managers.models import Manager
@@ -40,12 +40,17 @@ def get_access_denied_text() -> str:
 
 
 class ManagerAccessMiddleware(BaseMiddleware):
-    async def __call__(self, handler, event: Message, data: dict):
-        if not event.from_user:
+    async def __call__(self, handler, event, data: dict):
+        from_user = getattr(event, 'from_user', None)
+        if not from_user:
             return
-        manager = await get_manager(event.from_user.id, event.from_user.username)
+        manager = await get_manager(from_user.id, from_user.username)
         if not manager:
-            await event.answer(await get_access_denied_text())
+            text = await get_access_denied_text()
+            if isinstance(event, CallbackQuery):
+                await event.answer('Доступ закрыт. Свяжитесь с Администратором.', show_alert=True)
+            else:
+                await event.answer(text)
             return
         data['manager'] = manager
         return await handler(event, data)
