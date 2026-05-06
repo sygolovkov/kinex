@@ -54,10 +54,15 @@ class ProfileChangeRequest(models.Model):
     updated_at = models.DateTimeField(
         auto_now=True, verbose_name='Дата обновления')
 
+    _FIELD_LABELS: dict[str, str] = {'email': 'Email', 'usdt_wallet': 'USDT кошелёк'}
+    _STATUS_LABELS: dict[int, str] = {0: 'Ожидает обработки', 1: 'Выполнена'}
+
     class Meta:
         verbose_name = 'Заявка на изменение профиля'
         verbose_name_plural = 'Заявки на изменение профиля'
         ordering = ('-created_at',)
 
     def __str__(self):
-        return f'{self.manager} — {self.get_field_display()} ({self.get_status_display()})'
+        field_label = self._FIELD_LABELS.get(self.field, self.field)
+        status_label = self._STATUS_LABELS.get(self.status, str(self.status))
+        return f'{self.manager} — {field_label} ({status_label})'
