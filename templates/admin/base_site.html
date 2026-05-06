@@ -1,0 +1,40 @@
+{% extends "admin/base.html" %}
+{% load i18n static %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+<div id="site-name">
+  <a href="{% url 'admin:index' %}">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+         style="vertical-align:-4px; margin-right:8px; opacity:.85;">
+      <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+      <line x1="1" y1="10" x2="23" y2="10"/>
+    </svg>
+    {{ site_header|default:_('Django administration') }}
+  </a>
+</div>
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
+
+{% block userlinks %}
+<form id="logout-form" method="post" action="{% url 'admin:logout' %}">
+  {% csrf_token %}
+  <button type="submit">{% translate 'Log out' %}</button>
+</form>
+{% include "admin/color_theme_toggle.html" %}
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script>document.documentElement.dataset.theme = 'dark';</script>
+<style>
+.dashboard #content { width: auto !important; }
+
+/* Ширина бокового навбара */
+#nav-sidebar { flex: 0 0 380px; }
+.main.shifted > #nav-sidebar + .content { max-width: calc(100% - 403px); }
+</style>
+{% endblock %}

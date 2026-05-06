@@ -2,9 +2,23 @@ from decimal import Decimal
 
 from django.contrib import admin
 from django.db.models import Count, Q, Sum
+from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import format_html
 
 from .models import Settings
+
+
+class EditLinkMixin:
+    """Добавляет колонку с иконкой редактирования в changelist."""
+
+    def edit_link(self, obj):
+        app  = obj._meta.app_label
+        name = obj._meta.model_name
+        url  = reverse(f'admin:{app}_{name}_change', args=[obj.pk])
+        return format_html('<a href="{}" class="changelink">Изменить</a>', url)
+
+    edit_link.short_description = ''  # type: ignore[attr-defined]
 
 
 def _get_dashboard_stats():
@@ -76,8 +90,11 @@ class KinexAdminSite(admin.AdminSite):
         return super().index(request, extra_context)
 
     def get_app_list(self, request, _app_label=None):  # type: ignore[override]
+        _APP_ORDER = ['managers', 'payments', 'core']
+
         app_list = super().get_app_list(request)
         stats = _get_dashboard_stats()
+
         for app in app_list:
             for model in app['models']:
                 key = (app['app_label'], model['object_name'].lower())
@@ -86,6 +103,12 @@ class KinexAdminSite(admin.AdminSite):
                     count = stats[stat_key]
                     suffix = f' ({count})' if count else ' (0)'
                     model['name'] = model['name'] + suffix
+
+        app_list.sort(key=lambda a: (
+            _APP_ORDER.index(a['app_label'])
+            if a['app_label'] in _APP_ORDER
+            else len(_APP_ORDER)
+        ))
         return app_list
 
 

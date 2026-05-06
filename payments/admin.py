@@ -1,18 +1,20 @@
 from django.contrib import admin
+
+from core.admin import EditLinkMixin
 from .models import Payment, Withdrawal
 
 
 @admin.register(Payment)
-class PaymentAdmin(admin.ModelAdmin):
-    list_display = ('manager', 'amount', 'currency', 'status', 'is_settled', 'order_id', 'transaction_id', 'created_at')
+class PaymentAdmin(EditLinkMixin, admin.ModelAdmin):
+    list_display = ('manager', 'amount', 'currency', 'status', 'is_settled', 'order_id', 'transaction_id', 'created_at', 'edit_link')
     list_filter = ('status', 'is_settled', 'currency')
     search_fields = ('manager__telegram_id', 'manager__name', 'description')
     readonly_fields = ('created_at', 'updated_at')
 
 
 @admin.register(Withdrawal)
-class WithdrawalAdmin(admin.ModelAdmin):
-    list_display = ('manager', 'amount', 'status', 'usdt_wallet', 'created_at', 'updated_at')
+class WithdrawalAdmin(EditLinkMixin, admin.ModelAdmin):
+    list_display = ('manager', 'amount', 'status', 'usdt_wallet', 'created_at', 'updated_at', 'edit_link')
     list_filter = ('status',)
     search_fields = ('manager__telegram_id', 'manager__name')
     readonly_fields = ('manager', 'amount', 'created_at', 'updated_at')
