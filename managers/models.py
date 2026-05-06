@@ -29,3 +29,35 @@ class Manager(models.Model):
 
     def __str__(self):
         return self.name or self.telegram_username or self.telegram_id or f'Менеджер #{self.pk}'
+
+
+class ProfileChangeRequest(models.Model):
+    class Status(models.IntegerChoices):
+        PENDING = 0, 'Ожидает обработки'
+        COMPLETED = 1, 'Выполнена'
+
+    class Field(models.TextChoices):
+        EMAIL = 'email', 'Email'
+        USDT_WALLET = 'usdt_wallet', 'USDT кошелёк'
+
+    manager = models.ForeignKey(
+        Manager, on_delete=models.CASCADE, related_name='change_requests',
+        verbose_name='Менеджер')
+    field = models.CharField(
+        max_length=20, choices=Field.choices, verbose_name='Поле')
+    new_value = models.CharField(
+        max_length=255, verbose_name='Новое значение')
+    status = models.IntegerField(
+        choices=Status.choices, default=Status.PENDING, verbose_name='Статус')
+    created_at = models.DateTimeField(
+        auto_now_add=True, verbose_name='Дата создания')
+    updated_at = models.DateTimeField(
+        auto_now=True, verbose_name='Дата обновления')
+
+    class Meta:
+        verbose_name = 'Заявка на изменение профиля'
+        verbose_name_plural = 'Заявки на изменение профиля'
+        ordering = ('-created_at',)
+
+    def __str__(self):
+        return f'{self.manager} — {self.get_field_display()} ({self.get_status_display()})'

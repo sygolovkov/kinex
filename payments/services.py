@@ -69,9 +69,13 @@ _STATUS_EMOJI = {
 }
 
 
+def _local_midnight():
+    return dj_timezone.localtime().replace(hour=0, minute=0, second=0, microsecond=0)
+
+
 def get_balance_stats(manager, period: str) -> dict:
     from django.db.models import Sum
-    today_midnight = dj_timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_midnight = _local_midnight()
     since = today_midnight if period == 'today' else today_midnight.replace(day=1)
 
     total = Payment.objects.filter(
@@ -104,8 +108,7 @@ def get_balance_stats(manager, period: str) -> dict:
 
 def calculate_available_balance(manager) -> Decimal:
     from django.db.models import Sum
-    today_midnight = dj_timezone.now().replace(
-        hour=0, minute=0, second=0, microsecond=0)
+    today_midnight = _local_midnight()
     total = Payment.objects.filter(
         manager=manager,
         status=Payment.Status.SUCCESS,
@@ -126,8 +129,7 @@ def create_withdrawal(manager) -> Withdrawal:
     ).exists():
         raise ValueError('active_withdrawal_exists')
 
-    today_midnight = dj_timezone.now().replace(
-        hour=0, minute=0, second=0, microsecond=0)
+    today_midnight = _local_midnight()
     payment_qs = Payment.objects.select_for_update().filter(
         manager=manager,
         status=Payment.Status.SUCCESS,
@@ -139,6 +141,9 @@ def create_withdrawal(manager) -> Withdrawal:
     manager_rate = manager.commission / Decimal('100')
     ps_rate = settings.payment_system_commission / Decimal('100')
     amount = (total * manager_rate * (1 - ps_rate)).quantize(Decimal('0.01'))
+
+    if amount <= 0:
+        raise ValueError('no_funds_available')
 
     withdrawal = Withdrawal.objects.create(manager=manager, amount=amount)
     payment_qs.update(is_settled=True)

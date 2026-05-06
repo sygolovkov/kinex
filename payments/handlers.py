@@ -12,6 +12,7 @@ from asgiref.sync import sync_to_async
 from django.utils import timezone
 
 from core.models import Settings
+from managers.models import ProfileChangeRequest
 from .models import Payment, Withdrawal
 from .services import calculate_available_balance, create_payment, create_withdrawal, get_balance_stats
 
@@ -41,9 +42,7 @@ CONFIRM_KB = InlineKeyboardMarkup(inline_keyboard=[[
     InlineKeyboardButton(text='❌ Отменить',    callback_data='pay_cancel'),
 ]])
 
-MENU_BUTTONS = {
-    '👤 Профиль',
-}
+MENU_BUTTONS = set()
 
 _BAL_PERIODS = [('today', 'Сегодня'), ('month', 'Месяц')]
 _BAL_PERIOD_LABEL = {'today': 'сегодня', 'month': 'за месяц'}
@@ -112,6 +111,10 @@ class PaymentLink(StatesGroup):
     description = State()
     amount = State()
     confirm = State()
+
+
+class ProfileChange(StatesGroup):
+    value = State()
 
 
 @router.message(CommandStart())
@@ -389,6 +392,11 @@ async def withdrawal_confirm(call: CallbackQuery, manager):
                 '⚠️ У вас уже есть активная заявка на вывод.',
                 reply_markup=MENU,
             )
+        elif str(e) == 'no_funds_available':
+            await call.message.answer(
+                '⚠️ Нет доступных средств для вывода.',
+                reply_markup=MENU,
+            )
         else:
             await call.message.answer(
                 '⚠️ Ошибка при создании заявки. Попробуйте позже.',
@@ -406,6 +414,104 @@ async def withdrawal_confirm(call: CallbackQuery, manager):
         f'✅ Заявка на вывод создана\n\n'
         f'💰 Сумма: {withdrawal.amount:,.2f} RUB\n'
         f'Администратор обработает заявку вручную.',
+        reply_markup=MENU,
+    )
+
+
+# ── Профиль ──────────────────────────────────────────────────────────────────
+
+PROFILE_KB = InlineKeyboardMarkup(inline_keyboard=[[
+    InlineKeyboardButton(text='📧 Изменить email',        callback_data='profile_change:email'),
+    InlineKeyboardButton(text='💳 Изменить USDT кошелёк', callback_data='profile_change:usdt_wallet'),
+]])
+
+
+@sync_to_async
+def _get_active_change_request(manager):
+    return ProfileChangeRequest.objects.filter(
+        manager=manager, status=ProfileChangeRequest.Status.PENDING,
+    ).order_by('-created_at').first()
+
+
+def _profile_text(manager, active_request) -> str:
+    lines = [
+        '👤 Профиль\n',
+        f'📛 Имя:            {manager.name or "—"}',
+        f'📧 Email:          {manager.email or "—"}',
+        f'💳 USDT кошелёк:  {manager.usdt_wallet or "—"}',
+        f'💹 Комиссия:       {manager.commission}%',
+    ]
+    if active_request:
+        field_label = ProfileChangeRequest.Field(active_request.field).label
+        lines.append(
+            f'\n⏳ Активная заявка на изменение: {field_label}\n'
+            f'   Новое значение: {active_request.new_value}\n'
+            f'   Ожидает обработки администратором.'
+        )
+    return '\n'.join(lines)
+
+
+@router.message(F.text == '👤 Профиль')
+async def profile_start(message: Message, manager):
+    active = await _get_active_change_request(manager)
+    kb = None if active else PROFILE_KB
+    await message.answer(_profile_text(manager, active), reply_markup=kb)
+
+
+@router.callback_query(F.data.startswith('profile_change:'))
+async def profile_change_start(call: CallbackQuery, state: FSMContext, manager):
+    await call.answer()
+    if not call.message:
+        return
+
+    active = await _get_active_change_request(manager)
+    if active:
+        await call.message.answer(
+            '⚠️ У вас уже есть активная заявка на изменение профиля. '
+            'Дождитесь её обработки.',
+        )
+        return
+
+    _, field = call.data.split(':')
+    if field not in ('email', 'usdt_wallet'):
+        return
+
+    field_label = ProfileChangeRequest.Field(field).label
+    await state.update_data(profile_field=field)
+    await state.set_state(ProfileChange.value)
+    await call.message.answer(
+        f'Введите новый {field_label}:',
+        reply_markup=CANCEL_KB,
+    )
+
+
+@router.message(ProfileChange.value)
+async def profile_change_value(message: Message, state: FSMContext, manager):
+    if message.text == 'Отмена':
+        await state.clear()
+        await message.answer('Выберите раздел:', reply_markup=MENU)
+        return
+
+    new_value = (message.text or '').strip()
+    if not new_value:
+        await message.answer('Значение не может быть пустым. Введите ещё раз:')
+        return
+
+    data = await state.get_data()
+    field = data['profile_field']
+    await state.clear()
+
+    await sync_to_async(ProfileChangeRequest.objects.create)(
+        manager=manager,
+        field=field,
+        new_value=new_value,
+    )
+
+    field_label = ProfileChangeRequest.Field(field).label
+    await message.answer(
+        f'✅ Заявка на изменение {field_label} отправлена.\n'
+        f'Новое значение: {new_value}\n\n'
+        f'Администратор рассмотрит заявку в ближайшее время.',
         reply_markup=MENU,
     )
 
