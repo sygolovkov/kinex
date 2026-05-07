@@ -239,9 +239,9 @@ def _balance_text(stats: dict, period: str) -> str:
     label = _BAL_PERIOD_LABEL[period]
     lines = [
         f'💰 Баланс {label}\n',
-        f'✅ Успешных платежей:  {stats["total"]:,.2f} RUB',
-        f'📤 Выведено:           {stats["withdrawn"]:,.2f} RUB',
-        f'🏦 Удержано платформой: {stats["platform_fee"]:,.2f} RUB',
+        f'✅ Успешных платежей:   {stats["total"]:,.2f} RUB',
+        f'📤 Выведено:            {stats["withdrawn"]:,.2f} RUB',
+        f'🏦 Удержано комиссий:   {stats["retained_fee"]:,.2f} RUB',
         f'\n💵 Доступно к выводу: {stats["available"]:,.2f} RUB',
     ]
     return '\n'.join(lines)

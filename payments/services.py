@@ -87,22 +87,28 @@ def get_balance_stats(manager, period: str) -> dict:
     settings = Settings.get()
     manager_rate = manager.commission / Decimal('100')
     ps_rate = settings.payment_system_commission / Decimal('100')
+    total_rate = manager_rate + ps_rate
+    net_rate = 1 - total_rate
 
-    # Комиссия платформы = доля платёжной системы от комиссии менеджера
-    platform_fee = (total * manager_rate * ps_rate).quantize(Decimal('0.01'))
-
-    # Выведено менеджером = сумма закрытых заявок на вывод за период
+    # Выведено = только завершённые заявки за период
     withdrawn = Withdrawal.objects.filter(
         manager=manager,
         status=Withdrawal.Status.COMPLETED,
         created_at__gte=since,
     ).aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
 
+    # Удержано = комиссия только по фактически выведенным средствам
+    # withdrawn = gross × net_rate  →  retained = withdrawn × total_rate / net_rate
+    retained_fee = (
+        (withdrawn * total_rate / net_rate).quantize(Decimal('0.01'))
+        if net_rate > 0 else Decimal('0')
+    )
+
     return {
-        'total': total,
-        'platform_fee': platform_fee,
-        'withdrawn': withdrawn,
-        'available': calculate_available_balance(manager),
+        'total':        total,
+        'retained_fee': retained_fee,
+        'withdrawn':    withdrawn,
+        'available':    calculate_available_balance(manager),
     }
 
 
@@ -118,7 +124,7 @@ def calculate_available_balance(manager) -> Decimal:
     settings = Settings.get()
     manager_rate = manager.commission / Decimal('100')
     ps_rate = settings.payment_system_commission / Decimal('100')
-    return (total * manager_rate * (1 - ps_rate)).quantize(Decimal('0.01'))
+    return (total * (1 - manager_rate - ps_rate)).quantize(Decimal('0.01'))
 
 
 @transaction.atomic
@@ -140,7 +146,7 @@ def create_withdrawal(manager) -> Withdrawal:
     settings = Settings.get()
     manager_rate = manager.commission / Decimal('100')
     ps_rate = settings.payment_system_commission / Decimal('100')
-    amount = (total * manager_rate * (1 - ps_rate)).quantize(Decimal('0.01'))
+    amount = (total * (1 - manager_rate - ps_rate)).quantize(Decimal('0.01'))
 
     if amount <= 0:
         raise ValueError('no_funds_available')
