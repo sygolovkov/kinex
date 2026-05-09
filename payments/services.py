@@ -88,31 +88,32 @@ def get_balance_stats(manager, period: str) -> dict:
     manager_rate = manager.commission / Decimal('100')
     ps_rate = settings.payment_system_commission / Decimal('100')
     total_rate = manager_rate + ps_rate
-    net_rate = 1 - total_rate
+    net_rate = Decimal('1') - total_rate
 
-    # Выведено = только завершённые заявки за период
+    # Выведено = завершённые заявки, фильтруем по updated_at —
+    # дате фактического завершения, а не создания заявки
     withdrawn = Withdrawal.objects.filter(
         manager=manager,
         status=Withdrawal.Status.COMPLETED,
-        created_at__gte=since,
+        updated_at__gte=since,
     ).aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
 
     # Удержано = комиссия только по фактически выведенным средствам
-    # withdrawn = gross × net_rate  →  retained = withdrawn × total_rate / net_rate
+    # withdrawal_amount = gross × net_rate  →  retained = withdrawal × total_rate / net_rate
     retained_fee = (
         (withdrawn * total_rate / net_rate).quantize(Decimal('0.01'))
-        if net_rate > 0 else Decimal('0')
+        if net_rate > Decimal('0') else Decimal('0')
     )
 
     return {
         'total':        total,
         'retained_fee': retained_fee,
         'withdrawn':    withdrawn,
-        'available':    calculate_available_balance(manager),
+        'available':    calculate_available_balance(manager, settings),
     }
 
 
-def calculate_available_balance(manager) -> Decimal:
+def calculate_available_balance(manager, settings=None) -> Decimal:
     from django.db.models import Sum
     today_midnight = _local_midnight()
     total = Payment.objects.filter(
@@ -121,16 +122,22 @@ def calculate_available_balance(manager) -> Decimal:
         is_settled=False,
         created_at__lt=today_midnight,
     ).aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
-    settings = Settings.get()
+    if settings is None:
+        settings = Settings.get()
     manager_rate = manager.commission / Decimal('100')
     ps_rate = settings.payment_system_commission / Decimal('100')
-    return (total * (1 - manager_rate - ps_rate)).quantize(Decimal('0.01'))
+    return (total * (Decimal('1') - manager_rate - ps_rate)).quantize(Decimal('0.01'))
 
 
 @transaction.atomic
 def create_withdrawal(manager) -> Withdrawal:
     from django.db.models import Sum
-    if Withdrawal.objects.select_for_update().filter(
+    # select_for_update(of=('self',)) блокирует строки менеджера чтобы
+    # исключить гонку при одновременных запросах на вывод
+    from managers.models import Manager as ManagerModel
+    ManagerModel.objects.select_for_update().get(pk=manager.pk)
+
+    if Withdrawal.objects.filter(
         manager=manager, status=Withdrawal.Status.PENDING,
     ).exists():
         raise ValueError('active_withdrawal_exists')
