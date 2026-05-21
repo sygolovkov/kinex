@@ -45,7 +45,16 @@ class PaymentCallbackView(View):
         except Payment.DoesNotExist:
             return JsonResponse({'error': 'not found'}, status=404)
 
-        payment.status = data.get('status_code', payment.status)
+        new_status = data.get('status_code', payment.status)
+        valid_statuses = {s.value for s in Payment.Status}
+        if new_status not in valid_statuses:
+            return JsonResponse({'error': 'invalid status'}, status=400)
+
+        # не откатываем финальный статус — SUCCESS не может стать ERROR
+        if payment.status == Payment.Status.SUCCESS and new_status != Payment.Status.SUCCESS:
+            return JsonResponse({'ok': True})
+
+        payment.status = new_status
         if data.get('transaction_id'):
             payment.transaction_id = data['transaction_id']
         payment.save(update_fields=['status', 'transaction_id', 'updated_at'])

@@ -50,7 +50,7 @@ def create_payment(amount: float, description: str, manager) -> dict:
         Payment.objects.create(
             manager=manager,
             order_id=order_id,
-            amount=amount,
+            amount=Decimal(str(amount)),
             currency='RUB',
             description=description,
             transaction_id=data.get('transaction_id', ''),
@@ -153,7 +153,7 @@ def create_withdrawal(manager) -> Withdrawal:
     settings = Settings.get()
     manager_rate = manager.commission / Decimal('100')
     ps_rate = settings.payment_system_commission / Decimal('100')
-    amount = (total * (1 - manager_rate - ps_rate)).quantize(Decimal('0.01'))
+    amount = (total * (Decimal('1') - manager_rate - ps_rate)).quantize(Decimal('0.01'))
 
     if amount <= 0:
         raise ValueError('no_funds_available')

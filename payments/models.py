@@ -18,7 +18,7 @@ class Payment(models.Model):
     currency = models.CharField(
         max_length=10, default='RUB', verbose_name='Валюта')
     order_id = models.CharField(
-        max_length=32, blank=True, db_index=True, verbose_name='ID заказа')
+        max_length=32, blank=True, unique=True, verbose_name='ID заказа')
     description = models.TextField(blank=True, verbose_name='Описание')
     transaction_id = models.CharField(
         max_length=64, blank=True, verbose_name='ID транзакции')
