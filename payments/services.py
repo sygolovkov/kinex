@@ -24,12 +24,11 @@ def get_usdt_rate() -> Decimal:
             return _usdt_cache['rate']
     try:
         resp = http_client.get(
-            'https://garantex.org/api/v2/depth',
-            params={'market': 'usdtrub'},
+            'https://api.coingecko.com/api/v3/simple/price',
+            params={'ids': 'tether', 'vs_currencies': 'rub'},
             timeout=5,
         )
-        asks = resp.json().get('asks', [])
-        rate = Decimal(str(asks[0]['price']))
+        rate = Decimal(str(resp.json()['tether']['rub']))
     except Exception:
         return _usdt_cache.get('rate', Decimal('0'))
     _usdt_cache['rate'] = rate
