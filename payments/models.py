@@ -49,7 +49,13 @@ class Withdrawal(models.Model):
         Manager, on_delete=models.PROTECT, related_name='withdrawals',
         verbose_name='Менеджер')
     amount = models.DecimalField(
-        max_digits=12, decimal_places=2, verbose_name='Сумма')
+        max_digits=12, decimal_places=2, verbose_name='Сумма RUB')
+    usdt_amount = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True,
+        verbose_name='Сумма USDT')
+    usdt_rate = models.DecimalField(
+        max_digits=10, decimal_places=4, null=True, blank=True,
+        verbose_name='Курс USDT на момент выплаты')
     status = models.IntegerField(
         choices=Status.choices, default=Status.PENDING, verbose_name='Статус')
     created_at = models.DateTimeField(

@@ -8,6 +8,12 @@ register = template.Library()
 
 
 @register.simple_tag
+def current_usdt_rate():
+    from payments.services import get_usdt_rate
+    return get_usdt_rate()
+
+
+@register.simple_tag
 def get_admin_stats():
     from managers.models import Manager, ProfileChangeRequest
     from payments.models import Payment, Withdrawal

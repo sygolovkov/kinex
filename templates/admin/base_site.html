@@ -1,5 +1,5 @@
 {% extends "admin/base.html" %}
-{% load i18n static %}
+{% load i18n static admin_stats %}
 
 {% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
 
@@ -20,6 +20,12 @@
 {% block nav-global %}{% endblock %}
 
 {% block userlinks %}
+{% current_usdt_rate as usdt_rate %}
+{% if usdt_rate %}
+<span style="font-size:.85em; opacity:.75; margin-right:12px;">
+  💱 USDT {{ usdt_rate|floatformat:2 }} ₽
+</span>
+{% endif %}
 <form id="logout-form" method="post" action="{% url 'admin:logout' %}">
   {% csrf_token %}
   <button type="submit">{% translate 'Log out' %}</button>
