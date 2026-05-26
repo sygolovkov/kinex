@@ -1,4 +1,5 @@
 from datetime import timedelta
+from decimal import Decimal
 
 from aiogram import Router, F
 from aiogram.filters import CommandStart
@@ -14,7 +15,7 @@ from django.utils import timezone
 from core.models import Settings
 from managers.models import ProfileChangeRequest
 from .models import Payment, Withdrawal
-from .services import calculate_available_balance, create_payment, create_withdrawal, get_balance_stats
+from .services import calculate_available_balance, create_payment, create_withdrawal, get_balance_stats, get_usdt_rate
 
 router = Router()
 
@@ -232,17 +233,28 @@ async def link_confirm(call: CallbackQuery, state: FSMContext, manager):
 
 @sync_to_async
 def _fetch_balance(manager, period: str) -> dict:
-    return get_balance_stats(manager, period)
+    stats = get_balance_stats(manager, period)
+    stats['usdt_rate'] = get_usdt_rate()
+    return stats
 
 
 def _balance_text(stats: dict, period: str) -> str:
     label = _BAL_PERIOD_LABEL[period]
-    lines = [
-        f'💰 Баланс {label}\n',
-        f'✅ Успешных платежей:   {stats["total"]:,.2f} RUB',
-        f'📤 Выведено:            {stats["withdrawn"]:,.2f} RUB',
-        f'🏦 Удержано комиссий:   {stats["retained_fee"]:,.2f} RUB',
-        f'\n💵 Доступно к выводу: {stats["available"]:,.2f} RUB',
+    rate = stats.get('usdt_rate', Decimal('0'))
+
+    def usdt(rub: Decimal) -> str:
+        if rate > 0:
+            return f' (~{(rub / rate).quantize(Decimal("0.01"))} USDT)'
+        return ''
+
+    lines = [f'💰 Баланс {label}\n']
+    if rate > 0:
+        lines.append(f'💱 Курс USDT (Garantex): {rate:,.2f} RUB\n')
+    lines += [
+        f'✅ Успешных платежей:   {stats["total"]:,.2f} RUB{usdt(stats["total"])}',
+        f'📤 Выведено:            {stats["withdrawn"]:,.2f} RUB{usdt(stats["withdrawn"])}',
+        f'🏦 Удержано комиссий:   {stats["retained_fee"]:,.2f} RUB{usdt(stats["retained_fee"])}',
+        f'\n💵 Доступно к выводу: {stats["available"]:,.2f} RUB{usdt(stats["available"])}',
     ]
     return '\n'.join(lines)
 

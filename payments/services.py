@@ -12,6 +12,30 @@ from django.utils import timezone as dj_timezone
 from core.models import Settings, get_bot_token
 from .models import Payment, Withdrawal
 
+_usdt_cache: dict = {}
+_USDT_CACHE_TTL = 900  # 15 минут
+
+
+def get_usdt_rate() -> Decimal:
+    cached_at = _usdt_cache.get('cached_at')
+    if cached_at is not None:
+        age = datetime.now(timezone.utc).timestamp() - cached_at
+        if age < _USDT_CACHE_TTL and _usdt_cache.get('rate', Decimal('0')) > 0:
+            return _usdt_cache['rate']
+    try:
+        resp = http_client.get(
+            'https://garantex.org/api/v2/depth',
+            params={'market': 'usdtrub'},
+            timeout=5,
+        )
+        asks = resp.json().get('asks', [])
+        rate = Decimal(str(asks[0]['price']))
+    except Exception:
+        return _usdt_cache.get('rate', Decimal('0'))
+    _usdt_cache['rate'] = rate
+    _usdt_cache['cached_at'] = datetime.now(timezone.utc).timestamp()
+    return rate
+
 
 def create_payment(amount: float, description: str, manager) -> dict:
     if not description:
