@@ -211,9 +211,11 @@ async def link_confirm(call: CallbackQuery, state: FSMContext, manager):
 
     status_code = result.get('status_code')
 
-    if status_code == -6:
+    if status_code not in (Payment.Status.CREATED, Payment.Status.IN_PROCESS):
+        description = result.get('description', '')
+        detail = f'\n\nПричина: {description}' if description else ''
         await call.message.answer(
-            '❌ Платёжная система вернула ошибку. Попробуйте создать новый платёж.',
+            f'❌ Не удалось создать платёж.{detail}',
             reply_markup=MENU,
         )
         return
@@ -222,9 +224,7 @@ async def link_confirm(call: CallbackQuery, state: FSMContext, manager):
     if result.get('url'):
         text += f'🔗 Ссылка: {result["url"]}'
     elif result.get('qr_code'):
-        text += f'QR payload: {result["qr_code"]["payload"]}'
-    else:
-        text += str(result)
+        text += f'QR: {result["qr_code"]["payload"]}'
 
     await call.message.answer(text, reply_markup=MENU)
 
@@ -249,7 +249,7 @@ def _balance_text(stats: dict, period: str) -> str:
 
     lines = [f'💰 Баланс {label}\n']
     if rate > 0:
-        lines.append(f'💱 Курс USDT (Garantex): {rate:,.2f} RUB\n')
+        lines.append(f'💱 Курс USDT сегодня: {rate:,.2f} RUB\n')
     lines += [
         f'✅ Успешных платежей:   {stats["total"]:,.2f} RUB{usdt(stats["total"])}',
         f'📤 Выведено:            {stats["withdrawn"]:,.2f} RUB{usdt(stats["withdrawn"])}',

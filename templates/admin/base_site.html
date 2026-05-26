@@ -22,7 +22,7 @@
 {% block userlinks %}
 {% current_usdt_rate as usdt_rate %}
 {% if usdt_rate %}
-<span style="font-size:.85em; opacity:.75; margin-right:12px;">
+<span style="font-size:1em; font-weight:600; opacity:.9; margin-right:16px;">
   💱 USDT {{ usdt_rate|floatformat:2 }} ₽
 </span>
 {% endif %}
