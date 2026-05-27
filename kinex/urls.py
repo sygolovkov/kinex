@@ -15,15 +15,15 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
+from django.http import HttpResponse
 from django.urls import path, include
-from django.views.generic import RedirectView
 
 admin.site.site_header = 'Kinex'
 admin.site.site_title = 'Kinex'
 admin.site.index_title = 'Панель управления'
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('kinex-panel/', admin.site.urls),
     path('payments/', include('payments.urls')),
-    path('', RedirectView.as_view(url='/admin/')),
+    path('', lambda request: HttpResponse('')),
 ]
