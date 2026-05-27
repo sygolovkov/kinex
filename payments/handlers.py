@@ -324,18 +324,28 @@ def _get_withdrawal_info(manager):
     active = Withdrawal.objects.filter(
         manager=manager, status=Withdrawal.Status.PENDING,
     ).order_by('-created_at').first()
-    return balance, active
+    rate = get_usdt_rate()
+    return balance, active, rate
+
+
+def _usdt_str(rub: Decimal, rate: Decimal) -> str:
+    if rate > 0:
+        return f' (~{(rub / rate).quantize(Decimal("0.01"))} USDT)'
+    return ''
 
 
 @router.message(F.text == '📤 Вывод')
 async def withdrawal_start(message: Message, manager):
-    balance, active = await _get_withdrawal_info(manager)
+    balance, active, rate = await _get_withdrawal_info(manager)
 
     if active:
+        usdt = _usdt_str(active.amount, rate)
+        rate_line = f'💱 Курс USDT сегодня: {rate:,.2f} RUB\n\n' if rate > 0 else ''
         await message.answer(
             f'📤 Вывод средств\n\n'
+            f'{rate_line}'
             f'У вас уже есть активная заявка на вывод.\n'
-            f'💰 Сумма: {active.amount:,.2f} RUB\n'
+            f'💰 Сумма: {active.amount:,.2f} RUB{usdt}\n'
             f'📅 Дата подачи: {timezone.localtime(active.created_at).strftime("%d.%m.%Y %H:%M")}\n\n'
             f'Заявка будет обработана администратором вручную.',
         )
@@ -356,9 +366,12 @@ async def withdrawal_start(message: Message, manager):
         )
         return
 
+    usdt = _usdt_str(balance, rate)
+    rate_line = f'💱 Курс USDT сегодня: {rate:,.2f} RUB\n' if rate > 0 else ''
     await message.answer(
         f'📤 Вывод средств\n\n'
-        f'Доступно к выводу: {balance:,.2f} RUB\n\n'
+        f'{rate_line}'
+        f'Доступно к выводу: {balance:,.2f} RUB{usdt}\n\n'
         f'Средства будут переведены на USDT-кошелёк:\n'
         f'<code>{manager.usdt_wallet}</code>\n\n'
         f'Подтвердите заявку:',
@@ -380,7 +393,7 @@ async def withdrawal_confirm(call: CallbackQuery, manager):
     if not call.message:
         return
 
-    balance, active = await _get_withdrawal_info(manager)
+    balance, active, _ = await _get_withdrawal_info(manager)
 
     if active:
         await call.message.answer(
@@ -422,9 +435,11 @@ async def withdrawal_confirm(call: CallbackQuery, manager):
         )
         return
 
+    rate = await sync_to_async(get_usdt_rate)()
+    usdt = _usdt_str(withdrawal.amount, rate)
     await call.message.answer(
         f'✅ Заявка на вывод создана\n\n'
-        f'💰 Сумма: {withdrawal.amount:,.2f} RUB\n'
+        f'💰 Сумма: {withdrawal.amount:,.2f} RUB{usdt}\n'
         f'Администратор обработает заявку вручную.',
         reply_markup=MENU,
     )
