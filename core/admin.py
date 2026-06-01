@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django.contrib import admin
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, DecimalField, ExpressionWrapper, F, Q, Sum
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
@@ -44,6 +44,17 @@ def _get_dashboard_stats():
     pay_today = pay_agg(Payment.objects.filter(created_at__gte=today))
     pay_month = pay_agg(Payment.objects.filter(created_at__gte=month_start))
 
+    admin_profit_today = Payment.objects.filter(
+        status=Payment.Status.SUCCESS,
+        created_at__gte=today,
+        manager__isnull=False,
+    ).annotate(
+        commission_amount=ExpressionWrapper(
+            F('amount') * F('manager__commission') / 100,
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        )
+    ).aggregate(total=Sum('commission_amount'))['total'] or Decimal('0')
+
     status_map = {
         r['status']: r['cnt']
         for r in Payment.objects.values('status').annotate(cnt=Count('id'))
@@ -61,18 +72,19 @@ def _get_dashboard_stats():
 
     return {
         'managers': managers,
-        'pay_all_sum':     pay_all['s']   or Decimal('0'),
-        'pay_all_count':   pay_all['c']   or 0,
-        'pay_today_sum':   pay_today['s'] or Decimal('0'),
-        'pay_today_count': pay_today['c'] or 0,
-        'pay_month_sum':   pay_month['s'] or Decimal('0'),
-        'pay_month_count': pay_month['c'] or 0,
-        'pay_in_process':      status_map.get(1, 0),
-        'pay_error':           status_map.get(6, 0),
-        'pending_profile':     pending_profile,
-        'pending_withdrawal':  pending_withdrawal,
-        'pending_total':       pending_profile + pending_withdrawal,
-        'withdrawn_month':     withdrawn_month,
+        'pay_all_sum':        pay_all['s']   or Decimal('0'),
+        'pay_all_count':      pay_all['c']   or 0,
+        'pay_today_sum':      pay_today['s'] or Decimal('0'),
+        'pay_today_count':    pay_today['c'] or 0,
+        'pay_month_sum':      pay_month['s'] or Decimal('0'),
+        'pay_month_count':    pay_month['c'] or 0,
+        'pay_in_process':     status_map.get(1, 0),
+        'pay_error':          status_map.get(6, 0),
+        'pending_profile':    pending_profile,
+        'pending_withdrawal': pending_withdrawal,
+        'pending_total':      pending_profile + pending_withdrawal,
+        'withdrawn_month':    withdrawn_month,
+        'admin_profit_today': admin_profit_today.quantize(Decimal('0.01')),
     }
 
 

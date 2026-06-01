@@ -1,0 +1,79 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content_title %}<h1>Панель управления</h1>{% endblock %}
+
+{% block content %}
+{% with s=dashboard_stats %}
+
+<style>
+.kx-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 32px;
+}
+@media (max-width: 1100px) { .kx-tiles { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px)  { .kx-tiles { grid-template-columns: 1fr; } }
+
+.kx-tile {
+  background: var(--darkened-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.kx-tile-value {
+  font-size: 2.2em;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--link-fg);
+}
+.kx-tile-label {
+  font-size: .9em;
+  color: var(--secondary);
+  font-weight: 500;
+}
+.kx-tile-sub {
+  font-size: .85em;
+  color: var(--secondary);
+  margin-top: 2px;
+}
+.kx-tile--green .kx-tile-value { color: #4caf50; }
+.kx-tile--red   .kx-tile-value { color: #ef5350; }
+.kx-tile--neutral .kx-tile-value { color: var(--secondary); }
+</style>
+
+<div class="kx-tiles">
+
+  <div class="kx-tile">
+    <div class="kx-tile-value">{{ s.pay_today_count }}</div>
+    <div class="kx-tile-label">Платежей сегодня</div>
+    <div class="kx-tile-sub">{{ s.pay_today_sum|floatformat:2 }} ₽</div>
+  </div>
+
+  <div class="kx-tile kx-tile--green">
+    <div class="kx-tile-value">{{ s.admin_profit_today|floatformat:2 }} ₽</div>
+    <div class="kx-tile-label">Моя прибыль сегодня</div>
+    <div class="kx-tile-sub">комиссия с менеджеров</div>
+  </div>
+
+  <div class="kx-tile">
+    <div class="kx-tile-value">{{ s.managers.active }}</div>
+    <div class="kx-tile-label">Активных менеджеров</div>
+    <div class="kx-tile-sub">всего: {{ s.managers.total }}</div>
+  </div>
+
+  <div class="kx-tile {% if s.pending_total %}kx-tile--red{% else %}kx-tile--neutral{% endif %}">
+    <div class="kx-tile-value">{{ s.pending_total }}</div>
+    <div class="kx-tile-label">Требуют внимания</div>
+    <div class="kx-tile-sub">
+      выводы: {{ s.pending_withdrawal }} &nbsp;·&nbsp; профиль: {{ s.pending_profile }}
+    </div>
+  </div>
+
+</div>
+{% endwith %}
+{% endblock %}
