@@ -30,9 +30,24 @@ def get_usdt_rate() -> Decimal:
         )
         rate = Decimal(str(resp.json()['tether']['rub']))
     except Exception:
+        # Кеш пуст — берём последний сохранённый курс из БД
+        if not _usdt_cache.get('rate'):
+            try:
+                db_rate = Settings.get().last_usdt_rate
+                if db_rate and db_rate > 0:
+                    return db_rate
+            except Exception:
+                pass
         return _usdt_cache.get('rate', Decimal('0'))
     _usdt_cache['rate'] = rate
     _usdt_cache['cached_at'] = datetime.now(timezone.utc).timestamp()
+    # Сохраняем в БД как резервный курс (get_or_create гарантирует существование строки)
+    try:
+        settings = Settings.get()
+        settings.last_usdt_rate = rate
+        settings.save(update_fields=['last_usdt_rate'])
+    except Exception:
+        pass
     return rate
 
 

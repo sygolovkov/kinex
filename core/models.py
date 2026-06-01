@@ -11,6 +11,9 @@ class Settings(models.Model):
     payment_system_commission = models.DecimalField(
         max_digits=5, decimal_places=2, default='5.00',
         verbose_name='Комиссия платёжной системы (%)')
+    last_usdt_rate = models.DecimalField(
+        max_digits=10, decimal_places=4, null=True, blank=True,
+        verbose_name='Последний известный курс USDT')
 
     class Meta:
         verbose_name = 'Настройки'
