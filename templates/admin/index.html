@@ -300,8 +300,8 @@ table.p-table tbody tr:hover { background:color-mix(in srgb,var(--border-color) 
 </div>{# /grid-3 #}
 
 {# График #}
-<script type="application/json" id="kx-hourly-labels">{{ s.hourly_labels_json }}</script>
-<script type="application/json" id="kx-hourly-data">{{ s.hourly_data_json }}</script>
+<script type="application/json" id="kx-hourly-labels">{{ s.hourly_labels_json|safe }}</script>
+<script type="application/json" id="kx-hourly-data">{{ s.hourly_data_json|safe }}</script>
 
 <div class="p-card p-chart-card">
   <div class="p-chart-title">Динамика платежей по часам (сегодня)</div>
