@@ -9,179 +9,114 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 {% endblock %}
 
 {% block content %}
 {% with s=dashboard_stats %}
 <style>
-/* ── Base ── */
 #content-main, #content { font-family: 'Nunito', sans-serif; }
 
-/* ── CSS vars ── */
 :root {
-  --p-blue:    #236dc9;
-  --p-purple:  #7b70ef;
-  --p-green:   #02bc9c;
-  --p-red:     #f7577e;
-  --p-yellow:  #f9bf59;
-  --p-cyan:    #5bc3e1;
-  --p-radius:  8px;
-  --p-shadow:  0 2px 12px rgba(0,0,0,.18);
-  --p-gap:     20px;
+  --p-blue:   #236dc9;
+  --p-purple: #7b70ef;
+  --p-green:  #02bc9c;
+  --p-red:    #f7577e;
+  --p-yellow: #f9bf59;
+  --p-cyan:   #5bc3e1;
+  --p-radius: 8px;
+  --p-shadow: 0 2px 12px rgba(0,0,0,.18);
+  --p-gap:    20px;
 }
 
-/* ── Grid helpers ── */
+/* grid */
 .p-grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:var(--p-gap); margin-bottom:var(--p-gap); }
 .p-grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:var(--p-gap); margin-bottom:var(--p-gap); }
 @media(max-width:1200px){ .p-grid-4 { grid-template-columns:repeat(2,1fr); } }
 @media(max-width:900px) { .p-grid-3 { grid-template-columns:1fr; } }
-@media(max-width:640px) { .p-grid-4, .p-grid-3 { grid-template-columns:1fr; } }
+@media(max-width:640px) { .p-grid-4,.p-grid-3 { grid-template-columns:1fr; } }
 
-/* ── Card base ── */
+/* card */
 .p-card {
   background: var(--darkened-bg);
   border: 1px solid var(--border-color);
   border-radius: var(--p-radius);
   box-shadow: var(--p-shadow);
-  transition: box-shadow .2s, transform .2s;
+  transition: box-shadow .2s, transform .15s;
 }
-.p-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,.26); transform: translateY(-1px); }
+.p-card:hover { box-shadow:0 6px 24px rgba(0,0,0,.26); transform:translateY(-1px); }
 
-/* ── KPI tiles ── */
-.p-tile { padding: 22px 22px 18px; }
-.p-tile-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-.p-tile-icon {
-  width: 48px; height: 48px;
-  border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.p-tile-icon svg { width: 22px; height: 22px; }
-.p-tile-label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--secondary);
-  margin-bottom: 6px;
-}
-.p-tile-value {
-  font-size: 28px;
-  font-weight: 800;
-  line-height: 1;
-  color: var(--body-fg);
-  letter-spacing: -.5px;
-}
-.p-tile-sub {
-  font-size: 12px;
-  color: var(--secondary);
-  margin-top: 4px;
-}
-.p-tile-value--alert { color: var(--p-red); }
+/* tile */
+.p-tile { padding:22px 22px 18px; }
+.p-tile-top { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:14px; }
+.p-tile-icon { width:48px; height:48px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.p-tile-icon svg { width:22px; height:22px; }
+.p-tile-label { font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--secondary); margin-bottom:6px; }
+.p-tile-value { font-size:28px; font-weight:800; line-height:1; color:var(--body-fg); letter-spacing:-.5px; }
+.p-tile-value--green { color:var(--p-green); }
+.p-tile-value--red   { color:var(--p-red); }
+.p-tile-sub { font-size:12px; color:var(--secondary); margin-top:4px; margin-bottom:12px; }
 
-/* ── Badge ── */
-.p-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 50px;
-  line-height: 1.4;
-}
-.p-badge svg { width: 11px; height: 11px; }
-.p-badge--up   { background: rgba(2,188,156,.15);  color: var(--p-green); }
-.p-badge--down { background: rgba(247,87,126,.15); color: var(--p-red); }
-.p-badge--flat { background: rgba(148,163,184,.12); color: var(--secondary); }
-.p-badge--ok   { background: rgba(2,188,156,.15);  color: var(--p-green); }
-.p-badge--warn { background: rgba(247,87,126,.15); color: var(--p-red); }
-.p-badge--status { background: rgba(2,188,156,.15); color: var(--p-green); }
+/* badge */
+.p-badge { display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:700; padding:3px 8px; border-radius:50px; line-height:1.4; }
+.p-badge svg { width:11px; height:11px; }
+.p-badge--up     { background:rgba(2,188,156,.15);   color:var(--p-green); }
+.p-badge--down   { background:rgba(247,87,126,.15);  color:var(--p-red); }
+.p-badge--flat   { background:rgba(148,163,184,.12); color:var(--secondary); }
+.p-badge--ok     { background:rgba(2,188,156,.15);   color:var(--p-green); }
+.p-badge--warn   { background:rgba(247,87,126,.15);  color:var(--p-red); }
+.p-badge--info   { background:rgba(35,109,201,.15);  color:var(--p-blue); }
+.p-badge--yellow { background:rgba(249,191,89,.15);  color:var(--p-yellow); }
 
-/* ── Section title ── */
-.p-section-label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: .09em;
-  text-transform: uppercase;
-  color: var(--secondary);
-  margin-bottom: 12px;
-}
+/* section label */
+.p-section-label { font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--secondary); margin-bottom:12px; }
 
-/* ── Profit cards ── */
-.p-profit-card { padding: 24px; }
-.p-profit-period {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--secondary);
-  margin-bottom: 12px;
-}
-.p-profit-usdt {
-  font-size: 26px;
-  font-weight: 800;
-  color: var(--p-green);
-  letter-spacing: -.5px;
-  line-height: 1;
-  margin-bottom: 4px;
-}
-.p-profit-rub {
-  font-size: 13px;
-  color: var(--secondary);
-  margin-bottom: 14px;
-}
+/* profit card */
+.p-profit-card { padding:24px; }
+.p-profit-period { font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--secondary); margin-bottom:12px; }
+.p-profit-usdt { font-size:26px; font-weight:800; color:var(--p-green); letter-spacing:-.5px; line-height:1; margin-bottom:4px; }
+.p-profit-rub  { font-size:13px; color:var(--secondary); margin-bottom:14px; }
 
-/* ── Table ── */
-.p-table-card { overflow: hidden; margin-bottom: 24px; }
-.p-table-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 22px;
-  border-bottom: 1px solid var(--border-color);
-}
-.p-table-title { font-size: 14px; font-weight: 700; color: var(--body-fg); }
-.p-table-link  { font-size: 12px; color: var(--p-blue); text-decoration: none; font-weight: 600; }
-.p-table-link:hover { text-decoration: underline; }
+/* today card */
+.p-today-card { padding:22px; }
+.p-today-icon { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-bottom:14px; }
+.p-today-icon svg { width:20px; height:20px; }
+.p-today-label { font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--secondary); margin-bottom:6px; }
+.p-today-value { font-size:24px; font-weight:800; line-height:1; color:var(--body-fg); letter-spacing:-.5px; margin-bottom:4px; }
+.p-today-sub   { font-size:12px; color:var(--secondary); margin-bottom:12px; }
 
-table.p-table { width: 100%; border-collapse: collapse; }
-table.p-table thead th {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: .07em;
-  text-transform: uppercase;
-  color: var(--secondary);
-  padding: 10px 22px;
-  text-align: left;
-  border-bottom: 1px solid var(--border-color);
-  white-space: nowrap;
-}
-table.p-table tbody td {
-  padding: 13px 22px;
-  font-size: 13px;
-  color: var(--body-fg);
-  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent);
-  vertical-align: middle;
-}
-table.p-table tbody tr:last-child td { border-bottom: none; }
-table.p-table tbody tr:hover { background: color-mix(in srgb, var(--border-color) 25%, transparent); }
+/* chart */
+.p-chart-card { padding:20px 22px; margin-bottom:var(--p-gap); }
+.p-chart-title { font-size:13px; font-weight:700; color:var(--body-fg); margin-bottom:16px; }
+.p-chart-wrap  { position:relative; height:180px; }
 
-.p-manager-name { font-weight: 600; font-size: 13px; }
-.p-amount       { font-weight: 700; font-size: 13px; }
-.p-muted        { color: var(--secondary); font-size: 12px; }
-.p-empty        { text-align: center; padding: 40px; color: var(--secondary); font-size: 13px; }
+/* table */
+.p-table-card { overflow:hidden; margin-bottom:24px; }
+.p-table-header { display:flex; align-items:center; justify-content:space-between; padding:16px 22px; border-bottom:1px solid var(--border-color); }
+.p-table-title { font-size:14px; font-weight:700; color:var(--body-fg); }
+.p-table-link  { font-size:12px; color:var(--p-blue); text-decoration:none; font-weight:600; }
+.p-table-link:hover { text-decoration:underline; }
+
+table.p-table { width:100%; border-collapse:collapse; }
+table.p-table thead th { font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--secondary); padding:10px 18px; text-align:left; border-bottom:1px solid var(--border-color); white-space:nowrap; }
+table.p-table tbody td { padding:12px 18px; font-size:13px; color:var(--body-fg); border-bottom:1px solid color-mix(in srgb,var(--border-color) 55%,transparent); vertical-align:middle; }
+table.p-table tbody tr:last-child td { border-bottom:none; }
+table.p-table tbody tr:hover { background:color-mix(in srgb,var(--border-color) 25%,transparent); }
+
+.p-fw6  { font-weight:600; }
+.p-fw7  { font-weight:700; }
+.p-muted { color:var(--secondary); font-size:12px; }
+.p-mono  { font-family:monospace; font-size:11px; color:var(--secondary); }
+.p-empty { text-align:center; padding:40px; color:var(--secondary); font-size:13px; }
 </style>
 
-<!-- ═══════════════════ KPI TILES ═══════════════════ -->
+{# ═══ TILE helpers ═══ #}
+{% with ICO_UP='<svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="18 15 12 9 6 15"/></svg>' ICO_DN='<svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="6 9 12 15 18 9"/></svg>' %}
+
+{# ══════════════════════════ KPI TILES ══════════════════════════ #}
 <div class="p-grid-4">
 
-  <!-- Платежей сегодня -->
+  {# Платежей сегодня #}
   <div class="p-card p-tile">
     <div class="p-tile-top">
       <div>
@@ -189,42 +124,38 @@ table.p-table tbody tr:hover { background: color-mix(in srgb, var(--border-color
         <div class="p-tile-value">{{ s.pay_today_count }}</div>
         <div class="p-tile-sub">{{ s.pay_today_sum|floatformat:2 }} ₽</div>
       </div>
-      <div class="p-tile-icon" style="background:rgba(35,109,201,.15);">
-        <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="#236dc9"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+      <div class="p-tile-icon" style="background:rgba(35,109,201,.15)">
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="#236dc9"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
       </div>
     </div>
-    <span class="p-badge p-badge--ok">
-      <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="20 6 9 17 4 12"/></svg>
-      Успешно
-    </span>
+    {% if s.dyn_pay_count is not None %}
+      {% if s.dyn_pay_count > 0 %}<span class="p-badge p-badge--up">{{ ICO_UP|safe }}+{{ s.dyn_pay_count }}% к вчера</span>
+      {% elif s.dyn_pay_count < 0 %}<span class="p-badge p-badge--down">{{ ICO_DN|safe }}{{ s.dyn_pay_count }}% к вчера</span>
+      {% else %}<span class="p-badge p-badge--flat">0% к вчера</span>{% endif %}
+    {% else %}<span class="p-badge p-badge--flat">0% к вчера</span>{% endif %}
   </div>
 
-  <!-- Прибыль сегодня -->
+  {# Прибыль сегодня #}
   <div class="p-card p-tile">
     <div class="p-tile-top">
       <div>
         <div class="p-tile-label">Прибыль сегодня</div>
-        <div class="p-tile-value" style="color:var(--p-green)">{{ s.profit_today|floatformat:2 }} ₽</div>
-        <div class="p-tile-sub">{% if s.profit_today_usdt %}≈ {{ s.profit_today_usdt }} USDT{% else %}—{% endif %}</div>
+        <div class="p-tile-value p-tile-value--green">{{ s.profit_today|floatformat:2 }} ₽</div>
+        <div class="p-tile-sub">≈ {{ s.profit_today_usdt }} USDT</div>
       </div>
-      <div class="p-tile-icon" style="background:rgba(2,188,156,.15);">
+      <div class="p-tile-icon" style="background:rgba(2,188,156,.15)">
         <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="#02bc9c"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
       </div>
     </div>
-    {% if s.dyn_today is not None %}
-      {% if s.dyn_today > 0 %}
-        <span class="p-badge p-badge--up"><svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="18 15 12 9 6 15"/></svg>+{{ s.dyn_today }}% к вчера</span>
-      {% elif s.dyn_today < 0 %}
-        <span class="p-badge p-badge--down"><svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="6 9 12 15 18 9"/></svg>{{ s.dyn_today }}% к вчера</span>
-      {% else %}
-        <span class="p-badge p-badge--flat">0% к вчера</span>
-      {% endif %}
-    {% else %}
-      <span class="p-badge p-badge--flat">нет данных</span>
-    {% endif %}
+    {% if s.profit_today == 0 %}<span class="p-badge p-badge--flat">0% к вчера</span>
+    {% elif s.dyn_today is not None %}
+      {% if s.dyn_today > 0 %}<span class="p-badge p-badge--up">{{ ICO_UP|safe }}+{{ s.dyn_today }}% к вчера</span>
+      {% elif s.dyn_today < 0 %}<span class="p-badge p-badge--down">{{ ICO_DN|safe }}{{ s.dyn_today }}% к вчера</span>
+      {% else %}<span class="p-badge p-badge--flat">0% к вчера</span>{% endif %}
+    {% else %}<span class="p-badge p-badge--flat">0% к вчера</span>{% endif %}
   </div>
 
-  <!-- Активных менеджеров -->
+  {# Активных менеджеров #}
   <div class="p-card p-tile">
     <div class="p-tile-top">
       <div>
@@ -232,25 +163,25 @@ table.p-table tbody tr:hover { background: color-mix(in srgb, var(--border-color
         <div class="p-tile-value">{{ s.managers.active }}</div>
         <div class="p-tile-sub">всего: {{ s.managers.total }}</div>
       </div>
-      <div class="p-tile-icon" style="background:rgba(123,112,239,.15);">
+      <div class="p-tile-icon" style="background:rgba(123,112,239,.15)">
         <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="#7b70ef"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       </div>
     </div>
     <span class="p-badge p-badge--ok">
-      <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="20 6 9 17 4 12"/></svg>
       Активны
     </span>
   </div>
 
-  <!-- Требуют внимания -->
+  {# Требуют внимания #}
   <div class="p-card p-tile">
     <div class="p-tile-top">
       <div>
         <div class="p-tile-label">Требуют внимания</div>
-        <div class="p-tile-value {% if s.pending_total %}p-tile-value--alert{% endif %}">{{ s.pending_total }}</div>
-        <div class="p-tile-sub">выводы: {{ s.pending_withdrawal }} &nbsp;·&nbsp; профиль: {{ s.pending_profile }}</div>
+        <div class="p-tile-value {% if s.pending_total %}p-tile-value--red{% endif %}">{{ s.pending_total }}</div>
+        <div class="p-tile-sub">выводы: {{ s.pending_withdrawal }} · профиль: {{ s.pending_profile }}</div>
       </div>
-      <div class="p-tile-icon" style="background:rgba(249,191,89,.15);">
+      <div class="p-tile-icon" style="background:rgba(249,191,89,.15)">
         <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="#f9bf59"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       </div>
     </div>
@@ -267,54 +198,178 @@ table.p-table tbody tr:hover { background: color-mix(in srgb, var(--border-color
     {% endif %}
   </div>
 
-</div>
+</div>{# /grid-4 #}
 
-<!-- ═══════════════════ PROFIT BLOCK ═══════════════════ -->
+{# ══════════════════════════ МОЯ ПРИБЫЛЬ ══════════════════════════ #}
 <div class="p-section-label">Моя прибыль</div>
 <div class="p-grid-3">
 
   {% with val=s.profit_today_usdt rub=s.profit_today dyn=s.dyn_today %}
   <div class="p-card p-profit-card">
     <div class="p-profit-period">За сегодня</div>
-    <div class="p-profit-usdt">{% if val %}{{ val }} USDT{% else %}— USDT{% endif %}</div>
+    <div class="p-profit-usdt">{{ val }} USDT</div>
     <div class="p-profit-rub">{{ rub|floatformat:2 }} ₽</div>
-    {% if dyn is not None %}
-      {% if dyn > 0 %}<span class="p-badge p-badge--up"><svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="18 15 12 9 6 15"/></svg>+{{ dyn }}% к вчера</span>
-      {% elif dyn < 0 %}<span class="p-badge p-badge--down"><svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="6 9 12 15 18 9"/></svg>{{ dyn }}% к вчера</span>
+    {% if rub == 0 %}<span class="p-badge p-badge--flat">0% к вчера</span>
+    {% elif dyn is not None %}
+      {% if dyn > 0 %}<span class="p-badge p-badge--up">{{ ICO_UP|safe }}+{{ dyn }}% к вчера</span>
+      {% elif dyn < 0 %}<span class="p-badge p-badge--down">{{ ICO_DN|safe }}{{ dyn }}% к вчера</span>
       {% else %}<span class="p-badge p-badge--flat">0% к вчера</span>{% endif %}
-    {% else %}<span class="p-badge p-badge--flat">нет данных</span>{% endif %}
+    {% else %}<span class="p-badge p-badge--flat">0% к вчера</span>{% endif %}
   </div>
   {% endwith %}
 
   {% with val=s.profit_week_usdt rub=s.profit_week dyn=s.dyn_week %}
   <div class="p-card p-profit-card">
     <div class="p-profit-period">За неделю</div>
-    <div class="p-profit-usdt">{% if val %}{{ val }} USDT{% else %}— USDT{% endif %}</div>
+    <div class="p-profit-usdt">{{ val }} USDT</div>
     <div class="p-profit-rub">{{ rub|floatformat:2 }} ₽</div>
-    {% if dyn is not None %}
-      {% if dyn > 0 %}<span class="p-badge p-badge--up"><svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="18 15 12 9 6 15"/></svg>+{{ dyn }}% к прошлой</span>
-      {% elif dyn < 0 %}<span class="p-badge p-badge--down"><svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="6 9 12 15 18 9"/></svg>{{ dyn }}% к прошлой</span>
+    {% if rub == 0 %}<span class="p-badge p-badge--flat">0% к прошлой</span>
+    {% elif dyn is not None %}
+      {% if dyn > 0 %}<span class="p-badge p-badge--up">{{ ICO_UP|safe }}+{{ dyn }}% к прошлой</span>
+      {% elif dyn < 0 %}<span class="p-badge p-badge--down">{{ ICO_DN|safe }}{{ dyn }}% к прошлой</span>
       {% else %}<span class="p-badge p-badge--flat">0% к прошлой</span>{% endif %}
-    {% else %}<span class="p-badge p-badge--flat">нет данных</span>{% endif %}
+    {% else %}<span class="p-badge p-badge--flat">0% к прошлой</span>{% endif %}
   </div>
   {% endwith %}
 
   {% with val=s.profit_month_usdt rub=s.profit_month dyn=s.dyn_month %}
   <div class="p-card p-profit-card">
     <div class="p-profit-period">За месяц</div>
-    <div class="p-profit-usdt">{% if val %}{{ val }} USDT{% else %}— USDT{% endif %}</div>
+    <div class="p-profit-usdt">{{ val }} USDT</div>
     <div class="p-profit-rub">{{ rub|floatformat:2 }} ₽</div>
-    {% if dyn is not None %}
-      {% if dyn > 0 %}<span class="p-badge p-badge--up"><svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="18 15 12 9 6 15"/></svg>+{{ dyn }}% к прошлому</span>
-      {% elif dyn < 0 %}<span class="p-badge p-badge--down"><svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="6 9 12 15 18 9"/></svg>{{ dyn }}% к прошлому</span>
+    {% if rub == 0 %}<span class="p-badge p-badge--flat">0% к прошлому</span>
+    {% elif dyn is not None %}
+      {% if dyn > 0 %}<span class="p-badge p-badge--up">{{ ICO_UP|safe }}+{{ dyn }}% к прошлому</span>
+      {% elif dyn < 0 %}<span class="p-badge p-badge--down">{{ ICO_DN|safe }}{{ dyn }}% к прошлому</span>
       {% else %}<span class="p-badge p-badge--flat">0% к прошлому</span>{% endif %}
-    {% else %}<span class="p-badge p-badge--flat">нет данных</span>{% endif %}
+    {% else %}<span class="p-badge p-badge--flat">0% к прошлому</span>{% endif %}
   </div>
   {% endwith %}
 
+</div>{# /grid-3 #}
+
+{# ══════════════════════════ СЕГОДНЯ ══════════════════════════ #}
+<div class="p-section-label">Сегодня</div>
+<div class="p-grid-3">
+
+  {# Количество транзакций #}
+  <div class="p-card p-today-card">
+    <div class="p-today-icon" style="background:rgba(91,195,225,.15)">
+      <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="#5bc3e1"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+    </div>
+    <div class="p-today-label">Количество транзакций</div>
+    <div class="p-today-value">{{ s.all_today_count }}</div>
+    <div class="p-today-sub">все статусы за сегодня</div>
+    {% if s.dyn_all_count is not None %}
+      {% if s.dyn_all_count > 0 %}<span class="p-badge p-badge--up">{{ ICO_UP|safe }}+{{ s.dyn_all_count }}% к вчера</span>
+      {% elif s.dyn_all_count < 0 %}<span class="p-badge p-badge--down">{{ ICO_DN|safe }}{{ s.dyn_all_count }}% к вчера</span>
+      {% else %}<span class="p-badge p-badge--flat">0% к вчера</span>{% endif %}
+    {% else %}<span class="p-badge p-badge--flat">0% к вчера</span>{% endif %}
+  </div>
+
+  {# Сумма принятых платежей #}
+  <div class="p-card p-today-card">
+    <div class="p-today-icon" style="background:rgba(2,188,156,.15)">
+      <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="#02bc9c"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+    </div>
+    <div class="p-today-label">Сумма принятых платежей</div>
+    <div class="p-today-value">{{ s.pay_today_sum|floatformat:2 }} ₽</div>
+    <div class="p-today-sub">успешных: {{ s.pay_today_count }}</div>
+    {% if s.dyn_pay_sum is not None %}
+      {% if s.dyn_pay_sum > 0 %}<span class="p-badge p-badge--up">{{ ICO_UP|safe }}+{{ s.dyn_pay_sum }}% к вчера</span>
+      {% elif s.dyn_pay_sum < 0 %}<span class="p-badge p-badge--down">{{ ICO_DN|safe }}{{ s.dyn_pay_sum }}% к вчера</span>
+      {% else %}<span class="p-badge p-badge--flat">0% к вчера</span>{% endif %}
+    {% else %}<span class="p-badge p-badge--flat">0% к вчера</span>{% endif %}
+  </div>
+
+  {# Активных платежей #}
+  <div class="p-card p-today-card">
+    <div class="p-today-icon" style="background:rgba(249,191,89,.15)">
+      <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="#f9bf59"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    </div>
+    <div class="p-today-label">Активных платежей</div>
+    <div class="p-today-value">{{ s.active_count }}</div>
+    <div class="p-today-sub">в статусе ожидания</div>
+    {% if s.dyn_active is not None %}
+      {% if s.dyn_active > 0 %}<span class="p-badge p-badge--up">{{ ICO_UP|safe }}+{{ s.dyn_active }}% к вчера</span>
+      {% elif s.dyn_active < 0 %}<span class="p-badge p-badge--down">{{ ICO_DN|safe }}{{ s.dyn_active }}% к вчера</span>
+      {% else %}<span class="p-badge p-badge--flat">0% к вчера</span>{% endif %}
+    {% else %}<span class="p-badge p-badge--flat">0% к вчера</span>{% endif %}
+  </div>
+
+</div>{# /grid-3 #}
+
+{# График #}
+<script type="application/json" id="kx-hourly-labels">{{ s.hourly_labels_json }}</script>
+<script type="application/json" id="kx-hourly-data">{{ s.hourly_data_json }}</script>
+
+<div class="p-card p-chart-card">
+  <div class="p-chart-title">Динамика платежей по часам (сегодня)</div>
+  <div class="p-chart-wrap">
+    <canvas id="hourlyChart"></canvas>
+  </div>
 </div>
 
-<!-- ═══════════════════ RECENT PAYMENTS ═══════════════════ -->
+<script>
+(function() {
+  const labels = JSON.parse(document.getElementById('kx-hourly-labels').textContent);
+  const data   = JSON.parse(document.getElementById('kx-hourly-data').textContent);
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  const gridColor  = isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.06)';
+  const tickColor  = isDark ? '#6b7280' : '#9ca3af';
+  const lineColor  = '#236dc9';
+  const fillColor  = isDark ? 'rgba(35,109,201,.12)' : 'rgba(35,109,201,.08)';
+
+  new Chart(document.getElementById('hourlyChart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        borderColor: lineColor,
+        backgroundColor: fillColor,
+        borderWidth: 2,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+        pointBackgroundColor: lineColor,
+        fill: true,
+        tension: 0.35,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: isDark ? '#1e1f27' : '#fff',
+          borderColor: isDark ? '#2d2f3a' : '#e5e7eb',
+          borderWidth: 1,
+          titleColor: isDark ? '#e5e7eb' : '#111827',
+          bodyColor:  isDark ? '#9ca3af' : '#6b7280',
+          padding: 10,
+          callbacks: { label: ctx => ` ${ctx.parsed.y} платежей` }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: gridColor },
+          ticks: { color: tickColor, font: { family: 'Nunito', size: 11 }, maxTicksLimit: 12 },
+          border: { display: false }
+        },
+        y: {
+          grid: { color: gridColor },
+          ticks: { color: tickColor, font: { family: 'Nunito', size: 11 }, precision: 0 },
+          border: { display: false },
+          beginAtZero: true
+        }
+      }
+    }
+  });
+})();
+</script>
+
+{# ══════════════════════════ ПОСЛЕДНИЕ ПЛАТЕЖИ ══════════════════════════ #}
 <div class="p-card p-table-card">
   <div class="p-table-header">
     <span class="p-table-title">Последние платежи</span>
@@ -326,19 +381,43 @@ table.p-table tbody tr:hover { background: color-mix(in srgb, var(--border-color
       <tr>
         <th>Менеджер</th>
         <th>Сумма</th>
+        <th>Валюта</th>
         <th>Назначение</th>
-        <th>Дата</th>
+        <th>ID заказа</th>
+        <th>ID транзакции</th>
         <th>Статус</th>
+        <th>Погашен</th>
+        <th>Дата</th>
       </tr>
     </thead>
     <tbody>
       {% for p in s.recent_payments %}
       <tr>
-        <td><span class="p-manager-name">{{ p.manager|default:"—" }}</span></td>
-        <td><span class="p-amount">{{ p.amount|floatformat:2 }} ₽</span></td>
-        <td><span class="p-muted">{{ p.description|default:"—"|truncatechars:38 }}</span></td>
+        <td><span class="p-fw6">{{ p.manager|default:"—" }}</span></td>
+        <td><span class="p-fw7">{{ p.amount|floatformat:2 }} ₽</span></td>
+        <td><span class="p-muted">{{ p.currency }}</span></td>
+        <td><span class="p-muted">{{ p.description|default:"—"|truncatechars:32 }}</span></td>
+        <td><span class="p-mono">{{ p.order_id|default:"—"|truncatechars:14 }}</span></td>
+        <td><span class="p-mono">{{ p.transaction_id|default:"—"|truncatechars:14 }}</span></td>
+        <td>
+          {% if p.status == 2 %}
+            <span class="p-badge p-badge--ok">Успешно</span>
+          {% elif p.status == 1 %}
+            <span class="p-badge p-badge--yellow">В процессе</span>
+          {% elif p.status == 0 %}
+            <span class="p-badge p-badge--info">Создан</span>
+          {% else %}
+            <span class="p-badge p-badge--warn">{{ p.get_status_display }}</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if p.is_settled %}
+            <span class="p-badge p-badge--ok">Да</span>
+          {% else %}
+            <span class="p-badge p-badge--flat">Нет</span>
+          {% endif %}
+        </td>
         <td><span class="p-muted">{{ p.created_at|date:"d.m.Y H:i" }}</span></td>
-        <td><span class="p-badge p-badge--status">Успешно</span></td>
       </tr>
       {% endfor %}
     </tbody>
@@ -348,5 +427,6 @@ table.p-table tbody tr:hover { background: color-mix(in srgb, var(--border-color
   {% endif %}
 </div>
 
-{% endwith %}
+{% endwith %}{# ICO_UP/ICO_DN #}
+{% endwith %}{# s #}
 {% endblock %}

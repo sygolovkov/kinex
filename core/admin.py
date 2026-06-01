@@ -1,8 +1,10 @@
+import json
 from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib import admin
 from django.db.models import Count, DecimalField, ExpressionWrapper, F, Q, Sum
+from django.db.models.functions import ExtractHour
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
@@ -24,7 +26,7 @@ class EditLinkMixin:
 
 def _calc_profit(qs):
     result = qs.filter(
-        status__in=[2],  # SUCCESS
+        status__in=[2],  # Payment.Status.SUCCESS = 2
         manager__isnull=False,
     ).annotate(
         ca=ExpressionWrapper(
@@ -36,6 +38,7 @@ def _calc_profit(qs):
 
 
 def _dynamics(current, previous):
+    """Возвращает процент изменения или None если нет данных за предыдущий период."""
     if previous and previous > 0:
         return round(float((current - previous) / previous * 100), 1)
     return None
@@ -46,64 +49,98 @@ def _get_dashboard_stats():
     from payments.models import Payment, Withdrawal
     from payments.services import get_usdt_rate
 
-    now = timezone.localtime()
-    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    yesterday       = today - timedelta(days=1)
-    week_start      = today - timedelta(days=7)
+    now        = timezone.localtime()
+    today      = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    yesterday  = today - timedelta(days=1)
+    week_start = today - timedelta(days=7)
     prev_week_start = today - timedelta(days=14)
-    month_start     = today.replace(day=1)
+    month_start = today.replace(day=1)
     if today.month == 1:
         prev_month_start = today.replace(year=today.year - 1, month=12, day=1)
     else:
         prev_month_start = today.replace(month=today.month - 1, day=1)
 
+    # ── Менеджеры ──
     managers = Manager.objects.aggregate(
         total=Count('id'),
         active=Count('id', filter=Q(is_active=True)),
         inactive=Count('id', filter=Q(is_active=False)),
     )
 
+    # ── Успешные платежи (сегодня / вчера / месяц) ──
     def pay_agg(qs):
         return qs.filter(status=Payment.Status.SUCCESS).aggregate(
             s=Sum('amount'), c=Count('id'),
         )
 
-    pay_today = pay_agg(Payment.objects.filter(created_at__gte=today))
-    pay_month = pay_agg(Payment.objects.filter(created_at__gte=month_start))
+    pay_today     = pay_agg(Payment.objects.filter(created_at__gte=today))
+    pay_yesterday = pay_agg(Payment.objects.filter(created_at__gte=yesterday, created_at__lt=today))
+    pay_month     = pay_agg(Payment.objects.filter(created_at__gte=month_start))
 
-    all_payments = Payment.objects
-    profit_today      = _calc_profit(all_payments.filter(created_at__gte=today))
-    profit_yesterday  = _calc_profit(all_payments.filter(created_at__gte=yesterday, created_at__lt=today))
-    profit_week       = _calc_profit(all_payments.filter(created_at__gte=week_start))
-    profit_prev_week  = _calc_profit(all_payments.filter(created_at__gte=prev_week_start, created_at__lt=week_start))
-    profit_month      = _calc_profit(all_payments.filter(created_at__gte=month_start))
-    profit_prev_month = _calc_profit(all_payments.filter(created_at__gte=prev_month_start, created_at__lt=month_start))
+    # ── Прибыль ──
+    p = Payment.objects
+    profit_today      = _calc_profit(p.filter(created_at__gte=today))
+    profit_yesterday  = _calc_profit(p.filter(created_at__gte=yesterday, created_at__lt=today))
+    profit_week       = _calc_profit(p.filter(created_at__gte=week_start))
+    profit_prev_week  = _calc_profit(p.filter(created_at__gte=prev_week_start, created_at__lt=week_start))
+    profit_month      = _calc_profit(p.filter(created_at__gte=month_start))
+    profit_prev_month = _calc_profit(p.filter(created_at__gte=prev_month_start, created_at__lt=month_start))
 
+    # ── Все транзакции сегодня / вчера (любой статус) ──
+    all_today     = Payment.objects.filter(created_at__gte=today).aggregate(c=Count('id'))['c'] or 0
+    all_yesterday = Payment.objects.filter(created_at__gte=yesterday, created_at__lt=today).aggregate(c=Count('id'))['c'] or 0
+
+    # ── Активные (IN_PROCESS) ──
+    active_now  = Payment.objects.filter(status=Payment.Status.IN_PROCESS).count()
+    active_prev = Payment.objects.filter(
+        status=Payment.Status.IN_PROCESS,
+        created_at__gte=yesterday, created_at__lt=today,
+    ).count()
+
+    # ── Почасовые данные для графика (успешные платежи по часам, московское время) ──
+    tz_info = timezone.get_current_timezone()
+    hourly_raw = (
+        Payment.objects
+        .filter(created_at__gte=today, status=Payment.Status.SUCCESS)
+        .annotate(hour=ExtractHour('created_at', tzinfo=tz_info))
+        .values('hour')
+        .annotate(cnt=Count('id'))
+        .order_by('hour')
+    )
+    by_hour = {row['hour']: row['cnt'] for row in hourly_raw}
+    hourly_data   = [by_hour.get(h, 0) for h in range(24)]
+    hourly_labels = [f'{h:02d}:00' for h in range(24)]
+
+    # ── USDT ──
     usdt_rate = get_usdt_rate()
 
     def to_usdt(rub):
         if usdt_rate > 0:
             return (rub / usdt_rate).quantize(Decimal('0.01'))
-        return None
+        return Decimal('0')
 
+    # ── Ожидают обработки ──
     pending_profile    = ProfileChangeRequest.objects.filter(status=ProfileChangeRequest.Status.PENDING).count()
     pending_withdrawal = Withdrawal.objects.filter(status=Withdrawal.Status.PENDING).count()
 
+    # ── Последние 10 платежей (все статусы) ──
     recent_payments = list(
-        Payment.objects.filter(status=Payment.Status.SUCCESS)
-        .select_related('manager')
-        .order_by('-created_at')[:10]
+        Payment.objects.select_related('manager').order_by('-created_at')[:10]
     )
 
     return {
+        # Tiles
         'managers':           managers,
-        'pay_today_sum':      pay_today['s'] or Decimal('0'),
-        'pay_today_count':    pay_today['c'] or 0,
-        'pay_month_sum':      pay_month['s'] or Decimal('0'),
-        'pay_month_count':    pay_month['c'] or 0,
+        'pay_today_sum':      pay_today['s']     or Decimal('0'),
+        'pay_today_count':    pay_today['c']     or 0,
+        'pay_month_sum':      pay_month['s']     or Decimal('0'),
+        'pay_month_count':    pay_month['c']     or 0,
+        'dyn_pay_count':      _dynamics(pay_today['c'] or 0,         pay_yesterday['c'] or 0),
+        'dyn_pay_sum':        _dynamics(pay_today['s'] or Decimal('0'), pay_yesterday['s'] or Decimal('0')),
         'pending_profile':    pending_profile,
         'pending_withdrawal': pending_withdrawal,
         'pending_total':      pending_profile + pending_withdrawal,
+        # Прибыль
         'profit_today':       profit_today,
         'profit_today_usdt':  to_usdt(profit_today),
         'profit_week':        profit_week,
@@ -111,28 +148,21 @@ def _get_dashboard_stats():
         'profit_month':       profit_month,
         'profit_month_usdt':  to_usdt(profit_month),
         'dyn_today':          _dynamics(profit_today, profit_yesterday),
-        'dyn_week':           _dynamics(profit_week, profit_prev_week),
+        'dyn_week':           _dynamics(profit_week,  profit_prev_week),
         'dyn_month':          _dynamics(profit_month, profit_prev_month),
         'usdt_rate':          usdt_rate,
+        # Сегодня
+        'all_today_count':    all_today,
+        'dyn_all_count':      _dynamics(all_today,    all_yesterday),
+        'active_count':       active_now,
+        'dyn_active':         _dynamics(active_now,   active_prev),
+        # Chart
+        'hourly_labels_json': json.dumps(hourly_labels),
+        'hourly_data_json':   json.dumps(hourly_data),
+        # Table
         'recent_payments':    recent_payments,
-        # legacy keys used by get_app_list badges
+        # legacy
         'admin_profit_today': profit_today,
-    }
-
-
-# app_label → model object_name (lower) → ключ в stats
-_BADGE_MAP = {
-    ('payments', 'withdrawal'):              'pending_withdrawal',
-    ('managers', 'profilechangerequest'):    'pending_profile',
-}
-
-
-def _get_badge_counts():
-    from managers.models import ProfileChangeRequest
-    from payments.models import Withdrawal
-    return {
-        'pending_withdrawal': Withdrawal.objects.filter(status=Withdrawal.Status.PENDING).count(),
-        'pending_profile':    ProfileChangeRequest.objects.filter(status=ProfileChangeRequest.Status.PENDING).count(),
     }
 
 
@@ -144,19 +174,7 @@ class KinexAdminSite(admin.AdminSite):
 
     def get_app_list(self, request, _app_label=None):  # type: ignore[override]
         _APP_ORDER = ['managers', 'payments', 'core']
-
         app_list = super().get_app_list(request)
-        stats = _get_badge_counts()
-
-        for app in app_list:
-            for model in app['models']:
-                key = (app['app_label'], model['object_name'].lower())
-                stat_key = _BADGE_MAP.get(key)
-                if stat_key is not None:
-                    count = stats[stat_key]
-                    suffix = f' ({count})' if count else ' (0)'
-                    model['name'] = model['name'] + suffix
-
         app_list.sort(key=lambda a: (
             _APP_ORDER.index(a['app_label'])
             if a['app_label'] in _APP_ORDER
