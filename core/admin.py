@@ -1,3 +1,4 @@
+from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib import admin
@@ -21,13 +22,40 @@ class EditLinkMixin:
     edit_link.short_description = ''  # type: ignore[attr-defined]
 
 
+def _calc_profit(qs):
+    result = qs.filter(
+        status__in=[2],  # SUCCESS
+        manager__isnull=False,
+    ).annotate(
+        ca=ExpressionWrapper(
+            F('amount') * F('manager__commission') / 100,
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        )
+    ).aggregate(total=Sum('ca'))['total']
+    return (result or Decimal('0')).quantize(Decimal('0.01'))
+
+
+def _dynamics(current, previous):
+    if previous and previous > 0:
+        return round(float((current - previous) / previous * 100), 1)
+    return None
+
+
 def _get_dashboard_stats():
     from managers.models import Manager, ProfileChangeRequest
     from payments.models import Payment, Withdrawal
+    from payments.services import get_usdt_rate
 
     now = timezone.localtime()
     today = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    month_start = today.replace(day=1)
+    yesterday       = today - timedelta(days=1)
+    week_start      = today - timedelta(days=7)
+    prev_week_start = today - timedelta(days=14)
+    month_start     = today.replace(day=1)
+    if today.month == 1:
+        prev_month_start = today.replace(year=today.year - 1, month=12, day=1)
+    else:
+        prev_month_start = today.replace(month=today.month - 1, day=1)
 
     managers = Manager.objects.aggregate(
         total=Count('id'),
@@ -40,51 +68,55 @@ def _get_dashboard_stats():
             s=Sum('amount'), c=Count('id'),
         )
 
-    pay_all = pay_agg(Payment.objects)
     pay_today = pay_agg(Payment.objects.filter(created_at__gte=today))
     pay_month = pay_agg(Payment.objects.filter(created_at__gte=month_start))
 
-    admin_profit_today = Payment.objects.filter(
-        status=Payment.Status.SUCCESS,
-        created_at__gte=today,
-        manager__isnull=False,
-    ).annotate(
-        commission_amount=ExpressionWrapper(
-            F('amount') * F('manager__commission') / 100,
-            output_field=DecimalField(max_digits=12, decimal_places=2),
-        )
-    ).aggregate(total=Sum('commission_amount'))['total'] or Decimal('0')
+    all_payments = Payment.objects
+    profit_today      = _calc_profit(all_payments.filter(created_at__gte=today))
+    profit_yesterday  = _calc_profit(all_payments.filter(created_at__gte=yesterday, created_at__lt=today))
+    profit_week       = _calc_profit(all_payments.filter(created_at__gte=week_start))
+    profit_prev_week  = _calc_profit(all_payments.filter(created_at__gte=prev_week_start, created_at__lt=week_start))
+    profit_month      = _calc_profit(all_payments.filter(created_at__gte=month_start))
+    profit_prev_month = _calc_profit(all_payments.filter(created_at__gte=prev_month_start, created_at__lt=month_start))
 
-    status_map = {
-        r['status']: r['cnt']
-        for r in Payment.objects.values('status').annotate(cnt=Count('id'))
-    }
+    usdt_rate = get_usdt_rate()
 
-    pending_profile = ProfileChangeRequest.objects.filter(
-        status=ProfileChangeRequest.Status.PENDING).count()
-    pending_withdrawal = Withdrawal.objects.filter(
-        status=Withdrawal.Status.PENDING).count()
+    def to_usdt(rub):
+        if usdt_rate > 0:
+            return (rub / usdt_rate).quantize(Decimal('0.01'))
+        return None
 
-    withdrawn_month = Withdrawal.objects.filter(
-        status=Withdrawal.Status.COMPLETED,
-        created_at__gte=month_start,
-    ).aggregate(s=Sum('amount'))['s'] or Decimal('0')
+    pending_profile    = ProfileChangeRequest.objects.filter(status=ProfileChangeRequest.Status.PENDING).count()
+    pending_withdrawal = Withdrawal.objects.filter(status=Withdrawal.Status.PENDING).count()
+
+    recent_payments = list(
+        Payment.objects.filter(status=Payment.Status.SUCCESS)
+        .select_related('manager')
+        .order_by('-created_at')[:10]
+    )
 
     return {
-        'managers': managers,
-        'pay_all_sum':        pay_all['s']   or Decimal('0'),
-        'pay_all_count':      pay_all['c']   or 0,
+        'managers':           managers,
         'pay_today_sum':      pay_today['s'] or Decimal('0'),
         'pay_today_count':    pay_today['c'] or 0,
         'pay_month_sum':      pay_month['s'] or Decimal('0'),
         'pay_month_count':    pay_month['c'] or 0,
-        'pay_in_process':     status_map.get(1, 0),
-        'pay_error':          status_map.get(6, 0),
         'pending_profile':    pending_profile,
         'pending_withdrawal': pending_withdrawal,
         'pending_total':      pending_profile + pending_withdrawal,
-        'withdrawn_month':    withdrawn_month,
-        'admin_profit_today': admin_profit_today.quantize(Decimal('0.01')),
+        'profit_today':       profit_today,
+        'profit_today_usdt':  to_usdt(profit_today),
+        'profit_week':        profit_week,
+        'profit_week_usdt':   to_usdt(profit_week),
+        'profit_month':       profit_month,
+        'profit_month_usdt':  to_usdt(profit_month),
+        'dyn_today':          _dynamics(profit_today, profit_yesterday),
+        'dyn_week':           _dynamics(profit_week, profit_prev_week),
+        'dyn_month':          _dynamics(profit_month, profit_prev_month),
+        'usdt_rate':          usdt_rate,
+        'recent_payments':    recent_payments,
+        # legacy keys used by get_app_list badges
+        'admin_profit_today': profit_today,
     }
 
 
@@ -93,6 +125,15 @@ _BADGE_MAP = {
     ('payments', 'withdrawal'):              'pending_withdrawal',
     ('managers', 'profilechangerequest'):    'pending_profile',
 }
+
+
+def _get_badge_counts():
+    from managers.models import ProfileChangeRequest
+    from payments.models import Withdrawal
+    return {
+        'pending_withdrawal': Withdrawal.objects.filter(status=Withdrawal.Status.PENDING).count(),
+        'pending_profile':    ProfileChangeRequest.objects.filter(status=ProfileChangeRequest.Status.PENDING).count(),
+    }
 
 
 class KinexAdminSite(admin.AdminSite):
@@ -105,7 +146,7 @@ class KinexAdminSite(admin.AdminSite):
         _APP_ORDER = ['managers', 'payments', 'core']
 
         app_list = super().get_app_list(request)
-        stats = _get_dashboard_stats()
+        stats = _get_badge_counts()
 
         for app in app_list:
             for model in app['models']:
