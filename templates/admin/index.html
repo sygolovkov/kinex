@@ -4,340 +4,324 @@
 {% block content_title %}<h1>Панель управления</h1>{% endblock %}
 {% block breadcrumbs %}{% endblock %}
 
+{% block extrahead %}
+{{ block.super }}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
 {% with s=dashboard_stats %}
 <style>
+/* ── Base ── */
+#content-main, #content { font-family: 'Nunito', sans-serif; }
+
+/* ── CSS vars ── */
 :root {
-  --kx-radius: 12px;
-  --kx-gap: 16px;
-  --kx-accent: #6366f1;
-  --kx-green: #22c55e;
-  --kx-red: #ef4444;
-  --kx-yellow: #f59e0b;
-  --kx-blue: #3b82f6;
-  --kx-purple: #a855f7;
+  --p-blue:    #236dc9;
+  --p-purple:  #7b70ef;
+  --p-green:   #02bc9c;
+  --p-red:     #f7577e;
+  --p-yellow:  #f9bf59;
+  --p-cyan:    #5bc3e1;
+  --p-radius:  8px;
+  --p-shadow:  0 2px 12px rgba(0,0,0,.18);
+  --p-gap:     20px;
 }
 
-.kx-tiles {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--kx-gap);
-  margin-bottom: 28px;
-}
-@media (max-width: 1200px) { .kx-tiles { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 640px)  { .kx-tiles { grid-template-columns: 1fr; } }
+/* ── Grid helpers ── */
+.p-grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:var(--p-gap); margin-bottom:var(--p-gap); }
+.p-grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:var(--p-gap); margin-bottom:var(--p-gap); }
+@media(max-width:1200px){ .p-grid-4 { grid-template-columns:repeat(2,1fr); } }
+@media(max-width:900px) { .p-grid-3 { grid-template-columns:1fr; } }
+@media(max-width:640px) { .p-grid-4, .p-grid-3 { grid-template-columns:1fr; } }
 
-.kx-tile {
+/* ── Card base ── */
+.p-card {
   background: var(--darkened-bg);
   border: 1px solid var(--border-color);
-  border-radius: var(--kx-radius);
-  padding: 20px 22px;
-  position: relative;
-  overflow: hidden;
-  transition: box-shadow .2s;
+  border-radius: var(--p-radius);
+  box-shadow: var(--p-shadow);
+  transition: box-shadow .2s, transform .2s;
 }
-.kx-tile:hover { box-shadow: 0 4px 20px rgba(0,0,0,.15); }
-.kx-tile::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 3px;
-  background: var(--kx-tile-color, var(--kx-accent));
-  border-radius: var(--kx-radius) var(--kx-radius) 0 0;
-}
-.kx-tile-head {
+.p-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,.26); transform: translateY(-1px); }
+
+/* ── KPI tiles ── */
+.p-tile { padding: 22px 22px 18px; }
+.p-tile-top {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
-.kx-tile-icon {
-  width: 38px; height: 38px;
+.p-tile-icon {
+  width: 48px; height: 48px;
   border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
-  background: color-mix(in srgb, var(--kx-tile-color, var(--kx-accent)) 12%, transparent);
   flex-shrink: 0;
 }
-.kx-tile-icon svg { width: 20px; height: 20px; stroke: var(--kx-tile-color, var(--kx-accent)); }
-.kx-tile-label {
-  font-size: .75em;
-  font-weight: 600;
-  letter-spacing: .06em;
+.p-tile-icon svg { width: 22px; height: 22px; }
+.p-tile-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
   text-transform: uppercase;
   color: var(--secondary);
+  margin-bottom: 6px;
 }
-.kx-tile-value {
-  font-size: 2em;
-  font-weight: 700;
+.p-tile-value {
+  font-size: 28px;
+  font-weight: 800;
   line-height: 1;
   color: var(--body-fg);
-  margin-bottom: 4px;
+  letter-spacing: -.5px;
 }
-.kx-tile-sub {
-  font-size: .82em;
+.p-tile-sub {
+  font-size: 12px;
   color: var(--secondary);
+  margin-top: 4px;
+}
+.p-tile-value--alert { color: var(--p-red); }
+
+/* ── Badge ── */
+.p-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 50px;
+  line-height: 1.4;
+}
+.p-badge svg { width: 11px; height: 11px; }
+.p-badge--up   { background: rgba(2,188,156,.15);  color: var(--p-green); }
+.p-badge--down { background: rgba(247,87,126,.15); color: var(--p-red); }
+.p-badge--flat { background: rgba(148,163,184,.12); color: var(--secondary); }
+.p-badge--ok   { background: rgba(2,188,156,.15);  color: var(--p-green); }
+.p-badge--warn { background: rgba(247,87,126,.15); color: var(--p-red); }
+.p-badge--status { background: rgba(2,188,156,.15); color: var(--p-green); }
+
+/* ── Section title ── */
+.p-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--secondary);
+  margin-bottom: 12px;
 }
 
-/* ── Profit block ── */
-.kx-section-title {
-  font-size: .75em;
-  font-weight: 600;
+/* ── Profit cards ── */
+.p-profit-card { padding: 24px; }
+.p-profit-period {
+  font-size: 11px;
+  font-weight: 700;
   letter-spacing: .08em;
   text-transform: uppercase;
   color: var(--secondary);
   margin-bottom: 12px;
-  padding-left: 2px;
 }
-.kx-profit-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--kx-gap);
-  margin-bottom: 28px;
-}
-@media (max-width: 900px)  { .kx-profit-grid { grid-template-columns: 1fr; } }
-
-.kx-profit-card {
-  background: var(--darkened-bg);
-  border: 1px solid var(--border-color);
-  border-radius: var(--kx-radius);
-  padding: 22px 24px;
-  transition: box-shadow .2s;
-}
-.kx-profit-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,.15); }
-.kx-profit-period {
-  font-size: .75em;
-  font-weight: 600;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  color: var(--secondary);
-  margin-bottom: 10px;
-}
-.kx-profit-usdt {
-  font-size: 1.9em;
-  font-weight: 700;
-  color: var(--kx-green);
+.p-profit-usdt {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--p-green);
+  letter-spacing: -.5px;
   line-height: 1;
   margin-bottom: 4px;
 }
-.kx-profit-rub {
-  font-size: .85em;
+.p-profit-rub {
+  font-size: 13px;
   color: var(--secondary);
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
-.kx-dyn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: .8em;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 20px;
-}
-.kx-dyn--up   { background: rgba(34,197,94,.12);  color: var(--kx-green); }
-.kx-dyn--down { background: rgba(239,68,68,.12);   color: var(--kx-red); }
-.kx-dyn--flat { background: rgba(148,163,184,.12); color: var(--secondary); }
-.kx-dyn svg { width: 13px; height: 13px; }
 
 /* ── Table ── */
-.kx-table-wrap {
-  background: var(--darkened-bg);
-  border: 1px solid var(--border-color);
-  border-radius: var(--kx-radius);
-  overflow: hidden;
-  margin-bottom: 28px;
-}
-.kx-table-head {
+.p-table-card { overflow: hidden; margin-bottom: 24px; }
+.p-table-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px 14px;
+  padding: 16px 22px;
   border-bottom: 1px solid var(--border-color);
 }
-.kx-table-head-title {
-  font-weight: 600;
-  font-size: .95em;
-}
-.kx-table-head-link {
-  font-size: .8em;
-  color: var(--kx-accent);
-  text-decoration: none;
-}
-.kx-table-head-link:hover { text-decoration: underline; }
-.kx-table { width: 100%; border-collapse: collapse; }
-.kx-table th {
-  font-size: .72em;
-  font-weight: 600;
-  letter-spacing: .06em;
+.p-table-title { font-size: 14px; font-weight: 700; color: var(--body-fg); }
+.p-table-link  { font-size: 12px; color: var(--p-blue); text-decoration: none; font-weight: 600; }
+.p-table-link:hover { text-decoration: underline; }
+
+table.p-table { width: 100%; border-collapse: collapse; }
+table.p-table thead th {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .07em;
   text-transform: uppercase;
   color: var(--secondary);
-  padding: 10px 20px;
+  padding: 10px 22px;
   text-align: left;
   border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
 }
-.kx-table td {
-  padding: 12px 20px;
-  font-size: .88em;
-  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 50%, transparent);
+table.p-table tbody td {
+  padding: 13px 22px;
+  font-size: 13px;
   color: var(--body-fg);
+  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent);
+  vertical-align: middle;
 }
-.kx-table tr:last-child td { border-bottom: none; }
-.kx-table tbody tr:hover { background: color-mix(in srgb, var(--border-color) 30%, transparent); }
-.kx-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 20px;
-  font-size: .78em;
-  font-weight: 600;
-}
-.kx-badge--success { background: rgba(34,197,94,.12);  color: var(--kx-green); }
-.kx-empty {
-  text-align: center;
-  padding: 32px;
-  color: var(--secondary);
-  font-size: .9em;
-}
+table.p-table tbody tr:last-child td { border-bottom: none; }
+table.p-table tbody tr:hover { background: color-mix(in srgb, var(--border-color) 25%, transparent); }
+
+.p-manager-name { font-weight: 600; font-size: 13px; }
+.p-amount       { font-weight: 700; font-size: 13px; }
+.p-muted        { color: var(--secondary); font-size: 12px; }
+.p-empty        { text-align: center; padding: 40px; color: var(--secondary); font-size: 13px; }
 </style>
 
-<!-- ── Tiles ── -->
-<div class="kx-tiles">
+<!-- ═══════════════════ KPI TILES ═══════════════════ -->
+<div class="p-grid-4">
 
-  <div class="kx-tile" style="--kx-tile-color: var(--kx-blue)">
-    <div class="kx-tile-head">
-      <span class="kx-tile-label">Платежей сегодня</span>
-      <div class="kx-tile-icon">
-        <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+  <!-- Платежей сегодня -->
+  <div class="p-card p-tile">
+    <div class="p-tile-top">
+      <div>
+        <div class="p-tile-label">Платежей сегодня</div>
+        <div class="p-tile-value">{{ s.pay_today_count }}</div>
+        <div class="p-tile-sub">{{ s.pay_today_sum|floatformat:2 }} ₽</div>
+      </div>
+      <div class="p-tile-icon" style="background:rgba(35,109,201,.15);">
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="#236dc9"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
       </div>
     </div>
-    <div class="kx-tile-value">{{ s.pay_today_count }}</div>
-    <div class="kx-tile-sub">{{ s.pay_today_sum|floatformat:2 }} ₽</div>
+    <span class="p-badge p-badge--ok">
+      <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="20 6 9 17 4 12"/></svg>
+      Успешно
+    </span>
   </div>
 
-  <div class="kx-tile" style="--kx-tile-color: var(--kx-green)">
-    <div class="kx-tile-head">
-      <span class="kx-tile-label">Прибыль сегодня</span>
-      <div class="kx-tile-icon">
-        <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+  <!-- Прибыль сегодня -->
+  <div class="p-card p-tile">
+    <div class="p-tile-top">
+      <div>
+        <div class="p-tile-label">Прибыль сегодня</div>
+        <div class="p-tile-value" style="color:var(--p-green)">{{ s.profit_today|floatformat:2 }} ₽</div>
+        <div class="p-tile-sub">{% if s.profit_today_usdt %}≈ {{ s.profit_today_usdt }} USDT{% else %}—{% endif %}</div>
+      </div>
+      <div class="p-tile-icon" style="background:rgba(2,188,156,.15);">
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="#02bc9c"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
       </div>
     </div>
-    <div class="kx-tile-value">{{ s.profit_today|floatformat:2 }} ₽</div>
-    <div class="kx-tile-sub">
-      {% if s.profit_today_usdt %}≈ {{ s.profit_today_usdt }} USDT{% else %}—{% endif %}
-    </div>
+    {% if s.dyn_today is not None %}
+      {% if s.dyn_today > 0 %}
+        <span class="p-badge p-badge--up"><svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="18 15 12 9 6 15"/></svg>+{{ s.dyn_today }}% к вчера</span>
+      {% elif s.dyn_today < 0 %}
+        <span class="p-badge p-badge--down"><svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="6 9 12 15 18 9"/></svg>{{ s.dyn_today }}% к вчера</span>
+      {% else %}
+        <span class="p-badge p-badge--flat">0% к вчера</span>
+      {% endif %}
+    {% else %}
+      <span class="p-badge p-badge--flat">нет данных</span>
+    {% endif %}
   </div>
 
-  <div class="kx-tile" style="--kx-tile-color: var(--kx-purple)">
-    <div class="kx-tile-head">
-      <span class="kx-tile-label">Активных менеджеров</span>
-      <div class="kx-tile-icon">
-        <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+  <!-- Активных менеджеров -->
+  <div class="p-card p-tile">
+    <div class="p-tile-top">
+      <div>
+        <div class="p-tile-label">Активных менеджеров</div>
+        <div class="p-tile-value">{{ s.managers.active }}</div>
+        <div class="p-tile-sub">всего: {{ s.managers.total }}</div>
+      </div>
+      <div class="p-tile-icon" style="background:rgba(123,112,239,.15);">
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="#7b70ef"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       </div>
     </div>
-    <div class="kx-tile-value">{{ s.managers.active }}</div>
-    <div class="kx-tile-sub">всего: {{ s.managers.total }}</div>
+    <span class="p-badge p-badge--ok">
+      <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Активны
+    </span>
   </div>
 
-  <div class="kx-tile" style="--kx-tile-color: {% if s.pending_total %}var(--kx-red){% else %}var(--kx-yellow){% endif %}">
-    <div class="kx-tile-head">
-      <span class="kx-tile-label">Требуют внимания</span>
-      <div class="kx-tile-icon">
-        <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+  <!-- Требуют внимания -->
+  <div class="p-card p-tile">
+    <div class="p-tile-top">
+      <div>
+        <div class="p-tile-label">Требуют внимания</div>
+        <div class="p-tile-value {% if s.pending_total %}p-tile-value--alert{% endif %}">{{ s.pending_total }}</div>
+        <div class="p-tile-sub">выводы: {{ s.pending_withdrawal }} &nbsp;·&nbsp; профиль: {{ s.pending_profile }}</div>
+      </div>
+      <div class="p-tile-icon" style="background:rgba(249,191,89,.15);">
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="#f9bf59"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       </div>
     </div>
-    <div class="kx-tile-value">{{ s.pending_total }}</div>
-    <div class="kx-tile-sub">выводы: {{ s.pending_withdrawal }} · профиль: {{ s.pending_profile }}</div>
+    {% if s.pending_total %}
+      <span class="p-badge p-badge--warn">
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Требует обработки
+      </span>
+    {% else %}
+      <span class="p-badge p-badge--ok">
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="20 6 9 17 4 12"/></svg>
+        Всё обработано
+      </span>
+    {% endif %}
   </div>
 
 </div>
 
-<!-- ── Profit block ── -->
-<div class="kx-section-title">Моя прибыль</div>
-<div class="kx-profit-grid">
+<!-- ═══════════════════ PROFIT BLOCK ═══════════════════ -->
+<div class="p-section-label">Моя прибыль</div>
+<div class="p-grid-3">
 
   {% with val=s.profit_today_usdt rub=s.profit_today dyn=s.dyn_today %}
-  <div class="kx-profit-card">
-    <div class="kx-profit-period">За сегодня</div>
-    <div class="kx-profit-usdt">{% if val %}{{ val }} USDT{% else %}— USDT{% endif %}</div>
-    <div class="kx-profit-rub">{{ rub|floatformat:2 }} ₽</div>
+  <div class="p-card p-profit-card">
+    <div class="p-profit-period">За сегодня</div>
+    <div class="p-profit-usdt">{% if val %}{{ val }} USDT{% else %}— USDT{% endif %}</div>
+    <div class="p-profit-rub">{{ rub|floatformat:2 }} ₽</div>
     {% if dyn is not None %}
-      {% if dyn > 0 %}
-        <span class="kx-dyn kx-dyn--up">
-          <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="18 15 12 9 6 15"/></svg>
-          +{{ dyn }}% к вчера
-        </span>
-      {% elif dyn < 0 %}
-        <span class="kx-dyn kx-dyn--down">
-          <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="6 9 12 15 18 9"/></svg>
-          {{ dyn }}% к вчера
-        </span>
-      {% else %}
-        <span class="kx-dyn kx-dyn--flat">0% к вчера</span>
-      {% endif %}
-    {% else %}
-      <span class="kx-dyn kx-dyn--flat">нет данных</span>
-    {% endif %}
+      {% if dyn > 0 %}<span class="p-badge p-badge--up"><svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="18 15 12 9 6 15"/></svg>+{{ dyn }}% к вчера</span>
+      {% elif dyn < 0 %}<span class="p-badge p-badge--down"><svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="6 9 12 15 18 9"/></svg>{{ dyn }}% к вчера</span>
+      {% else %}<span class="p-badge p-badge--flat">0% к вчера</span>{% endif %}
+    {% else %}<span class="p-badge p-badge--flat">нет данных</span>{% endif %}
   </div>
   {% endwith %}
 
   {% with val=s.profit_week_usdt rub=s.profit_week dyn=s.dyn_week %}
-  <div class="kx-profit-card">
-    <div class="kx-profit-period">За неделю</div>
-    <div class="kx-profit-usdt">{% if val %}{{ val }} USDT{% else %}— USDT{% endif %}</div>
-    <div class="kx-profit-rub">{{ rub|floatformat:2 }} ₽</div>
+  <div class="p-card p-profit-card">
+    <div class="p-profit-period">За неделю</div>
+    <div class="p-profit-usdt">{% if val %}{{ val }} USDT{% else %}— USDT{% endif %}</div>
+    <div class="p-profit-rub">{{ rub|floatformat:2 }} ₽</div>
     {% if dyn is not None %}
-      {% if dyn > 0 %}
-        <span class="kx-dyn kx-dyn--up">
-          <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="18 15 12 9 6 15"/></svg>
-          +{{ dyn }}% к прошлой
-        </span>
-      {% elif dyn < 0 %}
-        <span class="kx-dyn kx-dyn--down">
-          <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="6 9 12 15 18 9"/></svg>
-          {{ dyn }}% к прошлой
-        </span>
-      {% else %}
-        <span class="kx-dyn kx-dyn--flat">0% к прошлой</span>
-      {% endif %}
-    {% else %}
-      <span class="kx-dyn kx-dyn--flat">нет данных</span>
-    {% endif %}
+      {% if dyn > 0 %}<span class="p-badge p-badge--up"><svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="18 15 12 9 6 15"/></svg>+{{ dyn }}% к прошлой</span>
+      {% elif dyn < 0 %}<span class="p-badge p-badge--down"><svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="6 9 12 15 18 9"/></svg>{{ dyn }}% к прошлой</span>
+      {% else %}<span class="p-badge p-badge--flat">0% к прошлой</span>{% endif %}
+    {% else %}<span class="p-badge p-badge--flat">нет данных</span>{% endif %}
   </div>
   {% endwith %}
 
   {% with val=s.profit_month_usdt rub=s.profit_month dyn=s.dyn_month %}
-  <div class="kx-profit-card">
-    <div class="kx-profit-period">За месяц</div>
-    <div class="kx-profit-usdt">{% if val %}{{ val }} USDT{% else %}— USDT{% endif %}</div>
-    <div class="kx-profit-rub">{{ rub|floatformat:2 }} ₽</div>
+  <div class="p-card p-profit-card">
+    <div class="p-profit-period">За месяц</div>
+    <div class="p-profit-usdt">{% if val %}{{ val }} USDT{% else %}— USDT{% endif %}</div>
+    <div class="p-profit-rub">{{ rub|floatformat:2 }} ₽</div>
     {% if dyn is not None %}
-      {% if dyn > 0 %}
-        <span class="kx-dyn kx-dyn--up">
-          <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="18 15 12 9 6 15"/></svg>
-          +{{ dyn }}% к прошлому
-        </span>
-      {% elif dyn < 0 %}
-        <span class="kx-dyn kx-dyn--down">
-          <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="6 9 12 15 18 9"/></svg>
-          {{ dyn }}% к прошлому
-        </span>
-      {% else %}
-        <span class="kx-dyn kx-dyn--flat">0% к прошлому</span>
-      {% endif %}
-    {% else %}
-      <span class="kx-dyn kx-dyn--flat">нет данных</span>
-    {% endif %}
+      {% if dyn > 0 %}<span class="p-badge p-badge--up"><svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="18 15 12 9 6 15"/></svg>+{{ dyn }}% к прошлому</span>
+      {% elif dyn < 0 %}<span class="p-badge p-badge--down"><svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><polyline points="6 9 12 15 18 9"/></svg>{{ dyn }}% к прошлому</span>
+      {% else %}<span class="p-badge p-badge--flat">0% к прошлому</span>{% endif %}
+    {% else %}<span class="p-badge p-badge--flat">нет данных</span>{% endif %}
   </div>
   {% endwith %}
 
 </div>
 
-<!-- ── Recent payments ── -->
-<div class="kx-table-wrap">
-  <div class="kx-table-head">
-    <span class="kx-table-head-title">Последние платежи</span>
-    <a href="{% url 'admin:payments_payment_changelist' %}" class="kx-table-head-link">Все платежи →</a>
+<!-- ═══════════════════ RECENT PAYMENTS ═══════════════════ -->
+<div class="p-card p-table-card">
+  <div class="p-table-header">
+    <span class="p-table-title">Последние платежи</span>
+    <a href="{% url 'admin:payments_payment_changelist' %}" class="p-table-link">Все платежи →</a>
   </div>
   {% if s.recent_payments %}
-  <table class="kx-table">
+  <table class="p-table">
     <thead>
       <tr>
         <th>Менеджер</th>
@@ -350,19 +334,17 @@
     <tbody>
       {% for p in s.recent_payments %}
       <tr>
-        <td>{{ p.manager|default:"—" }}</td>
-        <td><strong>{{ p.amount|floatformat:2 }} ₽</strong></td>
-        <td style="color:var(--secondary); max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-          {{ p.description|default:"—"|truncatechars:40 }}
-        </td>
-        <td style="color:var(--secondary); white-space:nowrap;">{{ p.created_at|date:"d.m.Y H:i" }}</td>
-        <td><span class="kx-badge kx-badge--success">Успешно</span></td>
+        <td><span class="p-manager-name">{{ p.manager|default:"—" }}</span></td>
+        <td><span class="p-amount">{{ p.amount|floatformat:2 }} ₽</span></td>
+        <td><span class="p-muted">{{ p.description|default:"—"|truncatechars:38 }}</span></td>
+        <td><span class="p-muted">{{ p.created_at|date:"d.m.Y H:i" }}</span></td>
+        <td><span class="p-badge p-badge--status">Успешно</span></td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
   {% else %}
-  <div class="kx-empty">Платежей пока нет</div>
+  <div class="p-empty">Платежей пока нет</div>
   {% endif %}
 </div>
 
