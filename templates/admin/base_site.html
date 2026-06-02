@@ -53,7 +53,7 @@ body, #header, #nav-sidebar, #content, #content-main,
 #header {
   background: var(--header-bg);
   padding: 0 24px;
-  height: 60px;
+  height: 76px;
   display: flex;
   align-items: center;
   border-bottom: 1px solid var(--hairline-color);
@@ -119,11 +119,11 @@ body, #header, #nav-sidebar, #content, #content-main,
 
 /* ══ Sidebar ══ */
 #nav-sidebar {
-  flex: 0 0 250px;
+  flex: 0 0 350px;
   background: var(--darkened-bg);
   border-right: 1px solid var(--hairline-color);
 }
-.main.shifted > #nav-sidebar + .content { max-width: calc(100% - 273px); }
+.main.shifted > #nav-sidebar + .content { max-width: calc(100% - 373px); }
 .dashboard #content { width: auto !important; }
 
 #nav-sidebar .sticky { padding: 8px 0 16px; }
@@ -199,6 +199,8 @@ body, #header, #nav-sidebar, #content, #content-main,
 #nav-sidebar .module tbody tr:hover th a { color: #236dc9; }
 
 /* Add / Change links */
+#nav-sidebar .addlink::before { display: none; }
+
 #nav-sidebar .addlink,
 #nav-sidebar .changelink {
   font-size: 11px;
