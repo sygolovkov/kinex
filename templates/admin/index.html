@@ -312,6 +312,13 @@ table.p-table tbody tr:hover { background:color-mix(in srgb,var(--border-color) 
 
 <script>
 (function() {
+  // Progress bars
+  document.querySelectorAll('[data-progress]').forEach(function(el) {
+    el.style.width = el.getAttribute('data-progress') + '%';
+  });
+})();
+
+(function() {
   const labels = JSON.parse(document.getElementById('kx-hourly-labels').textContent);
   const data   = JSON.parse(document.getElementById('kx-hourly-data').textContent);
   const isDark = document.documentElement.dataset.theme === 'dark';
@@ -426,6 +433,151 @@ table.p-table tbody tr:hover { background:color-mix(in srgb,var(--border-color) 
   <div class="p-empty">Платежей пока нет</div>
   {% endif %}
 </div>
+
+{# ══════════════════════════ БАЛАНС + ЗАЯВКИ ══════════════════════════ #}
+<style>
+.p-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:var(--p-gap); margin-bottom:var(--p-gap); }
+@media(max-width:900px){ .p-grid-2 { grid-template-columns:1fr; } }
+
+/* Balance */
+.p-balance-card { padding:24px; }
+.p-balance-header { display:flex; align-items:center; gap:10px; margin-bottom:20px; }
+.p-balance-header-icon { width:36px; height:36px; border-radius:8px; background:rgba(35,109,201,.15); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.p-balance-header-icon svg { width:18px; height:18px; }
+.p-balance-header-title { font-size:14px; font-weight:700; color:var(--body-fg); }
+.p-balance-row { margin-bottom:18px; }
+.p-balance-row:last-child { margin-bottom:0; }
+.p-balance-label { font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--secondary); margin-bottom:6px; }
+.p-balance-amount { font-size:22px; font-weight:800; letter-spacing:-.5px; color:var(--body-fg); line-height:1; }
+.p-balance-amount--green { color:var(--p-green); }
+.p-balance-usdt { font-size:12px; color:var(--secondary); margin-top:3px; margin-bottom:10px; }
+.p-progress-wrap { margin-top:8px; }
+.p-progress-track { height:8px; background:color-mix(in srgb,var(--border-color) 80%,transparent); border-radius:50px; overflow:hidden; margin-bottom:6px; }
+.p-progress-fill { height:100%; border-radius:50px; transition:width .4s ease; }
+.p-progress-fill--green  { background:var(--p-green); }
+.p-progress-fill--yellow { background:var(--p-yellow); }
+.p-progress-fill--red    { background:var(--p-red); }
+.p-progress-meta { font-size:11px; color:var(--secondary); display:flex; justify-content:space-between; }
+.p-divider { height:1px; background:var(--border-color); margin:18px 0; }
+
+/* Pending */
+.p-pending-card { padding:0; overflow:hidden; }
+.p-pending-head { padding:16px 22px; border-bottom:1px solid var(--border-color); display:flex; align-items:center; gap:10px; }
+.p-pending-head-icon { width:36px; height:36px; border-radius:8px; background:rgba(247,87,126,.12); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.p-pending-head-icon svg { width:18px; height:18px; }
+.p-pending-head-title { font-size:14px; font-weight:700; color:var(--body-fg); }
+.p-pending-section { padding:12px 22px 4px; font-size:10px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--secondary); }
+table.p-ptable + .p-pending-section { border-top:1px solid color-mix(in srgb,var(--border-color) 50%,transparent); }
+
+table.p-ptable { width:100%; border-collapse:collapse; }
+table.p-ptable td { padding:10px 22px; font-size:13px; color:var(--body-fg); border-bottom:1px solid color-mix(in srgb,var(--border-color) 40%,transparent); vertical-align:middle; }
+table.p-ptable tr:last-child td { border-bottom:none; }
+table.p-ptable tr:hover td { background:color-mix(in srgb,var(--border-color) 20%,transparent); }
+.p-ptable-link { color:var(--p-blue); text-decoration:none; font-weight:600; font-size:12px; white-space:nowrap; }
+.p-ptable-link:hover { text-decoration:underline; }
+.p-pending-empty { padding:32px 22px; text-align:center; color:var(--secondary); font-size:13px; }
+</style>
+
+<div class="p-grid-2">
+
+  {# ── Баланс ── #}
+  <div class="p-card p-balance-card">
+    <div class="p-balance-header">
+      <div class="p-balance-header-icon">
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="#236dc9"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+      </div>
+      <span class="p-balance-header-title">Баланс</span>
+    </div>
+
+    <div class="p-balance-row">
+      <div class="p-balance-label">Общий баланс</div>
+      <div class="p-balance-amount">{{ s.total_gross|floatformat:2 }} ₽</div>
+      <div class="p-balance-usdt">≈ {{ s.total_gross_usdt }} USDT</div>
+    </div>
+
+    <div class="p-divider"></div>
+
+    <div class="p-balance-row">
+      <div class="p-balance-label">Доступно к выводу</div>
+      <div class="p-balance-amount p-balance-amount--green">{{ s.available_total|floatformat:2 }} ₽</div>
+      <div class="p-balance-usdt">≈ {{ s.available_total_usdt }} USDT</div>
+
+      <div class="p-progress-wrap">
+        <div class="p-progress-track">
+          {% if s.limit_progress >= 90 %}
+          <div class="p-progress-fill p-progress-fill--red" data-progress="{{ s.limit_progress }}"></div>
+          {% elif s.limit_progress >= 70 %}
+          <div class="p-progress-fill p-progress-fill--yellow" data-progress="{{ s.limit_progress }}"></div>
+          {% else %}
+          <div class="p-progress-fill p-progress-fill--green" data-progress="{{ s.limit_progress }}"></div>
+          {% endif %}
+        </div>
+        <div class="p-progress-meta">
+          <span>{{ s.limit_progress|floatformat:1 }}% от лимита</span>
+          <span>{{ s.withdrawal_limit|floatformat:0 }} ₽</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Необработанные заявки ── #}
+  <div class="p-card p-pending-card">
+    <div class="p-pending-head">
+      <div class="p-pending-head-icon">
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="#f7577e"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      </div>
+      <span class="p-pending-head-title">Необработанные заявки</span>
+    </div>
+
+    {% if s.pending_withdrawals_list %}
+    <div class="p-pending-section">Вывод средств</div>
+    <table class="p-ptable">
+      {% for w in s.pending_withdrawals_list %}
+      <tr>
+        <td><span class="p-fw6">{{ w.manager }}</span></td>
+        <td><span class="p-fw7">{{ w.amount|floatformat:2 }} ₽</span></td>
+        <td><span class="p-muted">{{ w.created_at|date:"d.m.Y H:i" }}</span></td>
+        <td>
+          <a href="{% url 'admin:payments_withdrawal_change' w.pk %}" class="p-ptable-link">
+            Обработать →
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+
+    {% if s.pending_profile_list %}
+    <div class="p-pending-section">Изменение профиля</div>
+    <table class="p-ptable">
+      {% for pr in s.pending_profile_list %}
+      <tr>
+        <td><span class="p-fw6">{{ pr.manager }}</span></td>
+        <td>
+          <span class="p-badge p-badge--info">{{ pr.get_field_display }}</span>
+        </td>
+        <td><span class="p-muted">{{ pr.new_value|truncatechars:20 }}</span></td>
+        <td>
+          <a href="{% url 'admin:managers_profilechangerequest_change' pr.pk %}" class="p-ptable-link">
+            Обработать →
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+
+    {% if not s.pending_withdrawals_list and not s.pending_profile_list %}
+    <div class="p-pending-empty">
+      <span class="p-badge p-badge--ok" style="font-size:13px;padding:6px 14px;">
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" style="width:14px;height:14px"><polyline points="20 6 9 17 4 12"/></svg>
+        Все заявки обработаны
+      </span>
+    </div>
+    {% endif %}
+  </div>
+
+</div>{# /grid-2 #}
 
 {% endwith %}{# ICO_UP/ICO_DN #}
 {% endwith %}{# s #}

@@ -1,4 +1,5 @@
 import os
+from decimal import Decimal
 
 from django.db import models
 
@@ -14,6 +15,9 @@ class Settings(models.Model):
     last_usdt_rate = models.DecimalField(
         max_digits=10, decimal_places=4, null=True, blank=True,
         verbose_name='Последний известный курс USDT')
+    withdrawal_limit = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal('400000.00'),
+        verbose_name='Лимит накоплений (RUB)')
 
     class Meta:
         verbose_name = 'Настройки'

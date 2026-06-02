@@ -119,9 +119,50 @@ def _get_dashboard_stats():
             return (rub / usdt_rate).quantize(Decimal('0.01'))
         return Decimal('0')
 
-    # ── Ожидают обработки ──
+    # ── Настройки (лимит, комиссия ПС) ──
+    settings_obj      = Settings.get()
+    ps_rate_decimal   = settings_obj.payment_system_commission / Decimal('100')
+    withdrawal_limit  = settings_obj.withdrawal_limit or Decimal('400000.00')
+
+    # ── Общий баланс (все успешные платежи) ──
+    total_gross = Payment.objects.filter(
+        status=Payment.Status.SUCCESS,
+    ).aggregate(s=Sum('amount'))['s'] or Decimal('0')
+
+    # ── Доступно к выводу: непогашенные SUCCESS-платежи до сегодня, нетто ──
+    available_raw = Payment.objects.filter(
+        status=Payment.Status.SUCCESS,
+        is_settled=False,
+        created_at__lt=today,
+        manager__isnull=False,
+    ).annotate(
+        net=ExpressionWrapper(
+            F('amount') * (Decimal('1') - ps_rate_decimal)
+            - F('amount') * F('manager__commission') / Decimal('100'),
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        )
+    ).aggregate(total=Sum('net'))['total']
+    available_total = (available_raw or Decimal('0')).quantize(Decimal('0.01'))
+
+    limit_progress = round(
+        min(float(available_total / withdrawal_limit * 100), 100), 1
+    ) if withdrawal_limit > 0 else 0.0
+
+    # ── Ожидают обработки (счётчики для тайлов) ──
     pending_profile    = ProfileChangeRequest.objects.filter(status=ProfileChangeRequest.Status.PENDING).count()
     pending_withdrawal = Withdrawal.objects.filter(status=Withdrawal.Status.PENDING).count()
+
+    # ── Необработанные заявки (списки для таблицы) ──
+    pending_withdrawals_list = list(
+        Withdrawal.objects.filter(status=Withdrawal.Status.PENDING)
+        .select_related('manager')
+        .order_by('-created_at')
+    )
+    pending_profile_list = list(
+        ProfileChangeRequest.objects.filter(status=ProfileChangeRequest.Status.PENDING)
+        .select_related('manager')
+        .order_by('-created_at')
+    )
 
     # ── Последние 10 платежей (все статусы) ──
     recent_payments = list(
@@ -135,8 +176,8 @@ def _get_dashboard_stats():
         'pay_today_count':    pay_today['c']     or 0,
         'pay_month_sum':      pay_month['s']     or Decimal('0'),
         'pay_month_count':    pay_month['c']     or 0,
-        'dyn_pay_count':      _dynamics(pay_today['c'] or 0,         pay_yesterday['c'] or 0),
-        'dyn_pay_sum':        _dynamics(pay_today['s'] or Decimal('0'), pay_yesterday['s'] or Decimal('0')),
+        'dyn_pay_count':      _dynamics(pay_today['c'] or 0,             pay_yesterday['c'] or 0),
+        'dyn_pay_sum':        _dynamics(pay_today['s'] or Decimal('0'),  pay_yesterday['s'] or Decimal('0')),
         'pending_profile':    pending_profile,
         'pending_withdrawal': pending_withdrawal,
         'pending_total':      pending_profile + pending_withdrawal,
@@ -147,19 +188,29 @@ def _get_dashboard_stats():
         'profit_week_usdt':   to_usdt(profit_week),
         'profit_month':       profit_month,
         'profit_month_usdt':  to_usdt(profit_month),
-        'dyn_today':          _dynamics(profit_today, profit_yesterday),
-        'dyn_week':           _dynamics(profit_week,  profit_prev_week),
-        'dyn_month':          _dynamics(profit_month, profit_prev_month),
+        'dyn_today':          _dynamics(profit_today,  profit_yesterday),
+        'dyn_week':           _dynamics(profit_week,   profit_prev_week),
+        'dyn_month':          _dynamics(profit_month,  profit_prev_month),
         'usdt_rate':          usdt_rate,
         # Сегодня
         'all_today_count':    all_today,
-        'dyn_all_count':      _dynamics(all_today,    all_yesterday),
+        'dyn_all_count':      _dynamics(all_today,   all_yesterday),
         'active_count':       active_now,
-        'dyn_active':         _dynamics(active_now,   active_prev),
+        'dyn_active':         _dynamics(active_now,  active_prev),
         # Chart
         'hourly_labels_json': json.dumps(hourly_labels),
         'hourly_data_json':   json.dumps(hourly_data),
-        # Table
+        # Баланс
+        'total_gross':            total_gross,
+        'total_gross_usdt':       to_usdt(total_gross),
+        'available_total':        available_total,
+        'available_total_usdt':   to_usdt(available_total),
+        'withdrawal_limit':       withdrawal_limit,
+        'limit_progress':         limit_progress,
+        # Заявки
+        'pending_withdrawals_list': pending_withdrawals_list,
+        'pending_profile_list':     pending_profile_list,
+        # Последние платежи
         'recent_payments':    recent_payments,
         # legacy
         'admin_profit_today': profit_today,
@@ -188,7 +239,8 @@ admin.site.__class__ = KinexAdminSite
 
 @admin.register(Settings)
 class SettingsAdmin(admin.ModelAdmin):
-    fields = ('admin_telegram_username', 'payment_system_commission')
+    fields = ('admin_telegram_username', 'payment_system_commission', 'withdrawal_limit', 'last_usdt_rate')
+    readonly_fields = ('last_usdt_rate',)
 
     def has_add_permission(self, request):
         return not Settings.objects.exists()
