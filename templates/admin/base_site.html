@@ -51,11 +51,12 @@ body, #header, #nav-sidebar, #content, #content-main,
 
 /* ══ Topbar ══ */
 #header {
-  background: var(--header-bg);
-  padding: 0 24px;
-  height: 76px;
-  display: flex;
-  align-items: center;
+  background: var(--header-bg) !important;
+  padding: 0 24px !important;
+  height: 76px !important;
+  min-height: 76px !important;
+  display: flex !important;
+  align-items: center !important;
   border-bottom: 1px solid var(--hairline-color);
   box-shadow: 0 1px 10px rgba(0,0,0,.28);
 }
@@ -199,7 +200,10 @@ body, #header, #nav-sidebar, #content, #content-main,
 #nav-sidebar .module tbody tr:hover th a { color: #236dc9; }
 
 /* Add / Change links */
-#nav-sidebar .addlink::before { display: none; }
+#nav-sidebar .addlink {
+  background-image: none !important;
+  padding-left: 0 !important;
+}
 
 #nav-sidebar .addlink,
 #nav-sidebar .changelink {
